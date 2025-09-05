@@ -22,6 +22,18 @@ function App() {
   const totalXP = completedQuests.reduce((a, q) => a + q.xp, 0);
   const level = Math.floor(totalXP / 50) + 1;
 
+
+  
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey) {
+    console.error("VITE_FIREBASE_API_KEY is missing!");
+  } else {
+    console.log("Firebase API key is present: ..." + apiKey.slice(-2));
+  }
+
+
+
+
   // Load quests from Firestore
   useEffect(() => {
     if (!user) return;
