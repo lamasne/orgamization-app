@@ -10,8 +10,12 @@ function App() {
   const [pendingQuests, setPendingQuests] = useState([]);
   const [completedQuests, setCompletedQuests] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
   const [newTaskXP, setNewTaskXP] = useState(0);
+  const [editingQuest, setEditingQuest] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editXP, setEditXP] = useState(0);
 
   // Load quests from Firestore
   useEffect(() => {
@@ -42,14 +46,37 @@ function App() {
   };
 
   const markDone = async (id) => {
-    const updatedPending = pendingQuests.map(q => q.id === id ? { ...q, done: true } : q);
-    const doneQuest = updatedPending.find(q => q.id === id);
-    const allQuests = [...updatedPending, ...completedQuests];
+    const updatedPending = pendingQuests.filter(q => q.id !== id);
+    const doneQuest = pendingQuests.find(q => q.id === id);
+    const updatedCompleted = [...completedQuests, { ...doneQuest, done: true }];
 
-    await saveQuests(allQuests);
+    await saveQuests([...updatedPending, ...updatedCompleted]);
 
-    setPendingQuests(updatedPending.filter(q => !q.done));
-    setCompletedQuests([...completedQuests, doneQuest]);
+    setPendingQuests(updatedPending);
+    setCompletedQuests(updatedCompleted);
+  };
+
+  const revertQuest = async (id) => {
+    const updatedCompleted = completedQuests.filter(q => q.id !== id);
+    const revertedQuest = completedQuests.find(q => q.id === id);
+    const updatedPending = [...pendingQuests, { ...revertedQuest, done: false }];
+
+    await saveQuests([...updatedPending, ...updatedCompleted]);
+
+    setPendingQuests(updatedPending);
+    setCompletedQuests(updatedCompleted);
+  };
+
+  const deleteQuest = async (id, fromCompleted = false) => {
+    if (!window.confirm("Are you sure? This action is irreversible.")) return;
+
+    const updatedPending = pendingQuests.filter(q => q.id !== id);
+    const updatedCompleted = completedQuests.filter(q => q.id !== id);
+
+    await saveQuests([...updatedPending, ...updatedCompleted]);
+
+    setPendingQuests(updatedPending);
+    setCompletedQuests(updatedCompleted);
   };
 
   const addTask = async (e) => {
@@ -68,6 +95,18 @@ function App() {
     setNewTaskXP(0);
   };
 
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    const updatedQuest = { ...editingQuest, name: editName, xp: Number(editXP) };
+    const allQuests = [...pendingQuests, ...completedQuests].map(q =>
+      q.id === editingQuest.id ? updatedQuest : q
+    );
+    await saveQuests(allQuests);
+    setPendingQuests(allQuests.filter(q => !q.done));
+    setCompletedQuests(allQuests.filter(q => q.done));
+    setEditingQuest(null);
+  };
+
   const totalXP = completedQuests.reduce((a, q) => a + q.xp, 0);
   const level = Math.floor(totalXP / 50) + 1;
 
@@ -80,22 +119,63 @@ function App() {
       ) : (
         <>
           <h1>Quant Prep XP Tracker</h1>
-          <p>Welcome {user.displayName || user.email}</p>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            <p style={{ margin: 0 }}>Welcome {user.displayName || user.email}</p>
+            <button onClick={() => signOut(auth)}>Logout</button>
+          </div>
+
           <p>Level: {level} | XP: {totalXP}</p>
           <progress value={totalXP % 50} max="50" style={{ width: "100%" }} />
 
+          <h2>Pending Tasks</h2>
           <ul>
             {pendingQuests.map(q => (
               <li key={q.id}>
-                <label>
-                  {q.name} (+{q.xp} XP)
-                  <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>
-                    Done
-                  </button>
-                </label>
+                {q.name} (+{q.xp} XP)
+                <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>
+                  Done
+                </button>
+                <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>
+                  Delete
+                </button>
+                <button style={{ marginLeft: "0.5rem" }} onClick={() => {
+                  setEditingQuest(q);
+                  setEditName(q.name);
+                  setEditXP(q.xp);
+                }}>
+                  Edit
+                </button>
               </li>
             ))}
           </ul>
+
+          {editingQuest && (
+            <form onSubmit={handleEditSave} style={{ marginTop: "1rem" }}>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+              <input
+                type="number"
+                value={editXP}
+                onChange={(e) => setEditXP(e.target.value)}
+                required
+                style={{ width: "60px", marginLeft: "0.5rem" }}
+              />
+              <button type="submit" style={{ marginLeft: "0.5rem" }}>Save</button>
+              <button
+                type="button"
+                style={{ marginLeft: "0.5rem" }}
+                onClick={() => setEditingQuest(null)}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+
 
           {!showForm && (
             <button onClick={() => setShowForm(true)}>+ Add Task</button>
@@ -123,7 +203,35 @@ function App() {
             </form>
           )}
 
-          <button style={{ marginTop: "1rem" }} onClick={() => signOut(auth)}>Logout</button>
+          <button style={{ marginTop: "1rem" }} onClick={() => setShowCompleted(!showCompleted)}>
+            {showCompleted ? "Hide Completed Tasks" : "See Completed Tasks"}
+          </button>
+
+          {showCompleted && (
+            <>
+              <h2>Completed Tasks</h2>
+              <ul>
+                {completedQuests.map(q => (
+                  <li key={q.id}>
+                    {q.name} (+{q.xp} XP)
+                    <button style={{ marginLeft: "1rem" }} onClick={() => revertQuest(q.id)}>
+                      Revert
+                    </button>
+                    <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id, true)}>
+                      Delete
+                    </button>
+                    <button style={{ marginLeft: "0.5rem" }} onClick={() => {
+                      setEditingQuest(q);
+                      setEditName(q.name);
+                      setEditXP(q.xp);
+                    }}>
+                      Edit
+                    </button>                    
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </>
       )}
     </div>
