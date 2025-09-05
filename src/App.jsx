@@ -1,3 +1,4 @@
+import { saveQuests } from "./services/questService";
 import { useEffect, useState } from "react";
 import './App.css';
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -43,18 +44,17 @@ function App() {
   }, [user]);
 
   // Firestore save
-  const saveQuests = async (allQuests) => {
+  const saveQuestsWrapper = async (allQuests) => {
     if (!user) return;
-    const ref = doc(db, "userQuests", user.uid);
-    await setDoc(ref, { quests: allQuests });
+    await saveQuests(db, user.uid, allQuests);
   };
-
+  
   // Quest functions
   const markDone = async (id) => {
     const updatedPending = pendingQuests.filter(q => q.id !== id);
     const doneQuest = pendingQuests.find(q => q.id === id);
     const updatedCompleted = [...completedQuests, { ...doneQuest, done: true }];
-    await saveQuests([...updatedPending, ...updatedCompleted]);
+    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
@@ -63,7 +63,7 @@ function App() {
     const updatedCompleted = completedQuests.filter(q => q.id !== id);
     const revertedQuest = completedQuests.find(q => q.id === id);
     const updatedPending = [...pendingQuests, { ...revertedQuest, done: false }];
-    await saveQuests([...updatedPending, ...updatedCompleted]);
+    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
@@ -72,7 +72,7 @@ function App() {
     if (!window.confirm("Are you sure? This action is irreversible.")) return;
     const updatedPending = pendingQuests.filter(q => q.id !== id);
     const updatedCompleted = completedQuests.filter(q => q.id !== id);
-    await saveQuests([...updatedPending, ...updatedCompleted]);
+    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
@@ -81,7 +81,7 @@ function App() {
     e.preventDefault();
     const newQuest = { id: Date.now(), name, xp: Number(xp), done: false };
     const allQuests = [...pendingQuests, newQuest, ...completedQuests];
-    await saveQuests(allQuests);
+    await saveQuestsWrapper(allQuests);
     setPendingQuests([...pendingQuests, newQuest]);
     setShowForm(false);
   };
@@ -92,7 +92,7 @@ function App() {
     const allQuests = [...pendingQuests, ...completedQuests].map(q =>
       q.id === editingQuest.id ? updatedQuest : q
     );
-    await saveQuests(allQuests);
+    await saveQuestsWrapper(allQuests);
     setPendingQuests(allQuests.filter(q => !q.done));
     setCompletedQuests(allQuests.filter(q => q.done));
     setEditingQuest(null);
@@ -149,8 +149,6 @@ function App() {
                 handleEditSave={handleEditSave}
                 showCompleted={showCompleted}
                 setShowCompleted={setShowCompleted}
-                totalXP={totalXP}
-                level={level}
               />
             )}
             {activeTab === "goals" && <GoalsTab />}

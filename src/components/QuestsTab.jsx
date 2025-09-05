@@ -10,7 +10,6 @@ export default function QuestsTab({
   editXP, setEditXP,
   handleEditSave,
   showCompleted, setShowCompleted,
-  totalXP, level
 }) {
   const [newQuestName, setNewQuestNameLocal] = useState("");
   const [newQuestXP, setNewQuestXPLocal] = useState(0);
