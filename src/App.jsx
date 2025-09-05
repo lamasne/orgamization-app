@@ -1,4 +1,3 @@
-import { saveQuests } from "./services/questService";
 import { useEffect, useState } from "react";
 import './App.css';
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -13,11 +12,6 @@ function App() {
   const [user, loading] = useAuthState(auth);
   const [pendingQuests, setPendingQuests] = useState([]);
   const [completedQuests, setCompletedQuests] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [editingQuest, setEditingQuest] = useState(null);
-  const [editName, setEditName] = useState("");
-  const [editXP, setEditXP] = useState(0);
   const [activeTab, setActiveTab] = useState("quests");
 
   const totalXP = completedQuests.reduce((a, q) => a + q.xp, 0);
@@ -42,61 +36,6 @@ function App() {
       }
     })();
   }, [user]);
-
-  // Firestore save
-  const saveQuestsWrapper = async (allQuests) => {
-    if (!user) return;
-    await saveQuests(db, user.uid, allQuests);
-  };
-  
-  // Quest functions
-  const markDone = async (id) => {
-    const updatedPending = pendingQuests.filter(q => q.id !== id);
-    const doneQuest = pendingQuests.find(q => q.id === id);
-    const updatedCompleted = [...completedQuests, { ...doneQuest, done: true }];
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
-    setPendingQuests(updatedPending);
-    setCompletedQuests(updatedCompleted);
-  };
-
-  const revertQuest = async (id) => {
-    const updatedCompleted = completedQuests.filter(q => q.id !== id);
-    const revertedQuest = completedQuests.find(q => q.id === id);
-    const updatedPending = [...pendingQuests, { ...revertedQuest, done: false }];
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
-    setPendingQuests(updatedPending);
-    setCompletedQuests(updatedCompleted);
-  };
-
-  const deleteQuest = async (id) => {
-    if (!window.confirm("Are you sure? This action is irreversible.")) return;
-    const updatedPending = pendingQuests.filter(q => q.id !== id);
-    const updatedCompleted = completedQuests.filter(q => q.id !== id);
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
-    setPendingQuests(updatedPending);
-    setCompletedQuests(updatedCompleted);
-  };
-
-  const addQuest = async (e, name, xp) => {
-    e.preventDefault();
-    const newQuest = { id: Date.now(), name, xp: Number(xp), done: false };
-    const allQuests = [...pendingQuests, newQuest, ...completedQuests];
-    await saveQuestsWrapper(allQuests);
-    setPendingQuests([...pendingQuests, newQuest]);
-    setShowForm(false);
-  };
-
-  const handleEditSave = async (e) => {
-    e.preventDefault();
-    const updatedQuest = { ...editingQuest, name: editName, xp: Number(editXP) };
-    const allQuests = [...pendingQuests, ...completedQuests].map(q =>
-      q.id === editingQuest.id ? updatedQuest : q
-    );
-    await saveQuestsWrapper(allQuests);
-    setPendingQuests(allQuests.filter(q => !q.done));
-    setCompletedQuests(allQuests.filter(q => q.done));
-    setEditingQuest(null);
-  };
 
   if (loading) return <p>Loading...</p>;
 
@@ -132,23 +71,12 @@ function App() {
           <div style={{ marginTop: "1rem" }}>
             {activeTab === "quests" && (
               <QuestsTab
+                db={db}
+                user={user}
                 pendingQuests={pendingQuests}
+                setPendingQuests={setPendingQuests}
                 completedQuests={completedQuests}
-                markDone={markDone}
-                revertQuest={revertQuest}
-                deleteQuest={deleteQuest}
-                addQuest={addQuest}
-                showForm={showForm}
-                setShowForm={setShowForm}
-                editingQuest={editingQuest}
-                setEditingQuest={setEditingQuest}
-                editName={editName}
-                setEditName={setEditName}
-                editXP={editXP}
-                setEditXP={setEditXP}
-                handleEditSave={handleEditSave}
-                showCompleted={showCompleted}
-                setShowCompleted={setShowCompleted}
+                setCompletedQuests={setCompletedQuests}
               />
             )}
             {activeTab === "goals" && <GoalsTab />}
