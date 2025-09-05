@@ -2,80 +2,70 @@
 
 ## Overview
 
-Quant Prep XP Tracker is a React + Firebase application that gamifies my preparation for quantitative (finance) research interviews. 
-
-Users can log in, track their tasks/quests, earn XP, and level up. The application can also be wrapped as an Android TWA (Trusted Web Activity) for installation on mobile devices.
+Quant Prep XP Tracker gamifies preparation for quantitative finance interviews. Users log in, track tasks, earn XP, and level up. The app can be wrapped as an Android TWA for mobile installation.
 
 ## Features
 
-* Firebase Authentication (login/logout)
-* Firestore integration for storing user-specific tasks
-* Mark tasks as completed, which updates XP and user level
-* Add new tasks dynamically
-* Progress bar showing XP towards the next level
-* Android TWA build support
+* Firebase Authentication
+* Firestore for user tasks
+* Mark tasks completed to update XP/level
+* Add tasks dynamically
+* XP progress bar
+* Android TWA support
 
 ## Tech Stack
 
-* React (front-end)
-* Vite (dev server & build tool)
-* Firebase (Authentication & Firestore)
-* Bubblewrap (TWA Android wrapper)
-* Android Studio (for building and testing TWA)
+* React
+* Vite
+* Firebase (Auth & Firestore)
+* Bubblewrap (TWA)
+* Android Studio
 
-## Setup Instructions
+## Setup
 
 ### 1. React App
 
 ```bash
-# Install dependencies
 npm install
-
-# Start development server (with Vite)
 npm run dev
-
-# Build production bundle (with Vite)
-npm run build
 ```
 
 ### 2. Firebase Hosting
 
-```bash
-# Initialize Firebase hosting
-firebase init
+* Ensure `dist/` is public folder.
 
-# Deploy to Firebase
+```bash
+npm run build
+firebase init
 firebase deploy
 ```
 
-* Ensure `dist/` is set as the public folder.
-
-### 3. Android TWA
+### 3. Export App to Android TWA
 
 ```bash
-# Initialize Bubblewrap project
-bubblewrap init --manifest=https://<your-firebase-app>.web.app/manifest.json
-
-# Build TWA APK
+bubblewrap init --manifest=https://quant-prep.web.app/manifest.json
 cd twa-build
 bubblewrap build
-
-# Run on device/emulator
-bubblewrap run
 ```
 
-* Alternatively, open `twa-build/` in **Android Studio** and run on an emulator or connected phone.
+**In Android Studio:**
 
-### 4. USB Installation (optional)
-In a terminal from twa-build folder:
+1. Open `twa-build/` (Gradle sync).
+2. Build Project: `Build → Make Project`.
+3. Build APK: `Build → Build Bundle(s) / APK(s) → Build APK(s)`.
+4. Run on emulator/device.
 
-```bash
-# List connected devices
-adb devices
 
-# Install APK on device
-adb -s YOUR_DEVICE install -r twa-build/app/build/outputs/apk/debug/app-debug.apk
-```
+### 4. Enable Developer Mode & USB Debugging
+1. **Developer Mode:** `Settings → About phone → Tap Build number 7x`.
+2. **USB Debugging:** `Settings → System → Developer options → USB debugging`.
+3. Connect phone via USB and accept prompts.
+4. Verify connection in a terminal: `adb devices`.
+5. Install APK: from a terminal, within the project folder:
+  ```bash
+  adb -s YOUR_DEVICE install -r twa-build/app/build/outputs/apk/debug/app-debug.apk
+  ```
+  replace `YOUR_DEVICE` by its value found from `adb devices` command
 
 ## Firebase Security Rules
 
@@ -83,25 +73,15 @@ adb -s YOUR_DEVICE install -r twa-build/app/build/outputs/apk/debug/app-debug.ap
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Only allow access to a user's own document in userQuests
     match /userQuests/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }
   }
 }
 ```
-
-## Notes
-
-* Make sure icons are properly set in `manifest.json` for regular, maskable, and optional monochrome.
-* The app is designed as a SPA but can be wrapped as a TWA for Android.
-* Keep `twa-build/` separate from React source to avoid clutter.
 
 ## License
 
