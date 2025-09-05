@@ -1,3 +1,4 @@
+import { createQuestDTO } from "../DTOs/QuestDTO";
 import { saveQuests } from "../services/questService";
 import { useState } from "react";
 
@@ -11,8 +12,8 @@ export default function QuestsTab({
 
   const [editName, setEditName] = useState("");
   const [editXP, setEditXP] = useState(0);
-  const [newQuestName, setNewQuestNameLocal] = useState("");
-  const [newQuestXP, setNewQuestXPLocal] = useState(0);
+  const [newQuestName, setNewQuestName] = useState("");
+  const [newHoursEstimate, setNewHoursEstimate] = useState(0);
 
   const saveQuestsWrapper = async (allQuests) => {
     if (!user) return;
@@ -46,9 +47,13 @@ export default function QuestsTab({
     setCompletedQuests(updatedCompleted);
   };
 
-  const addQuest = async (e, name, xp) => {
-    e.preventDefault();
-    const newQuest = { id: Date.now(), name, xp: Number(xp), done: false };
+  const addQuest = async (e, name, hoursEstimate) => {
+    e.preventDefault(); // Prevent refreshing and losing states
+    const newQuest = createQuestDTO({
+      user: user, 
+      name: name,
+      hoursEstimate: Number(hoursEstimate),
+    });    
     const allQuests = [...pendingQuests, newQuest, ...completedQuests];
     await saveQuestsWrapper(allQuests);
     setPendingQuests([...pendingQuests, newQuest]);
@@ -76,10 +81,11 @@ export default function QuestsTab({
   return (
     <>
       <h2>Pending Quests</h2>
+      {pendingQuests.length === 0 && <p>No pending quests. Add your first quest!</p>}
       <ul>
         {pendingQuests.map(q => (
           <li key={q.id}>
-            {q.name} (+{q.xp} XP)
+            {q.name} ({q.hoursEstimate} hours)
             <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>Done</button>
             <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>Delete</button>
             {!isEditingQuest && !isAddingQuest && <button style={{ marginLeft: "0.5rem" }} onClick={() => editQuest(q)}>Edit</button>}
@@ -96,9 +102,9 @@ export default function QuestsTab({
         </form>
       )}
       {isAddingQuest && (
-        <form onSubmit={(e) => addQuest(e, newQuestName, newQuestXP)} style={{ marginTop: "1rem" }}>
-          <input type="text" placeholder="Quest name" value={newQuestName} onChange={e => setNewQuestNameLocal(e.target.value)} required />
-          <input type="number" placeholder="XP" value={newQuestXP} onChange={e => setNewQuestXPLocal(e.target.value)} required style={{ width: "60px", marginLeft: "0.5rem" }} />
+        <form onSubmit={(e) => addQuest(e, newQuestName, newHoursEstimate)} style={{ marginTop: "1rem" }}>
+          <input type="text" placeholder="Quest name" value={newQuestName} onChange={e => setNewQuestName(e.target.value)} required />
+          <input type="number" placeholder="hoursEstimate" value={newHoursEstimate} onChange={e => setNewHoursEstimate(e.target.value)} required style={{ width: "60px", marginLeft: "0.5rem" }} />
           <button type="submit" style={{ marginLeft: "0.5rem" }}>Add</button>
           <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIsAddingQuest(false)}>Cancel</button>
         </form>

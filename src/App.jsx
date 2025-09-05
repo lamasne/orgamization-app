@@ -7,6 +7,7 @@ import { signOut } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import QuestsTab from "./components/QuestsTab";
 import GoalsTab from "./components/GoalsTab";
+import { collectionName as userQuestsCollectionName } from "./services/questService";
 
 function App() {
   const [user, loading] = useAuthState(auth);
@@ -20,7 +21,7 @@ function App() {
   // Load quests from Firestore
   useEffect(() => {
     if (!user) return;
-    const ref = doc(db, "userQuests", user.uid);
+    const ref = doc(db, userQuestsCollectionName, user.uid);
 
     (async () => {
       const snap = await getDoc(ref);
