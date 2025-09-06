@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import './App.css';
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "./config/firebase-config";
@@ -15,28 +15,27 @@ function App() {
   const [completedQuests, setCompletedQuests] = useState([]);
   const [activeTab, setActiveTab] = useState("quests");
 
-  const totalXP = completedQuests.reduce((a, q) => a + q.xp, 0);
+  const totalXP = completedQuests.reduce((a, q) => a + q.hoursEstimate, 0);
   const level = Math.floor(totalXP / 50) + 1;
 
   // Load quests from Firestore
   useEffect(() => {
-    if (!user) return;
-    const ref = doc(db, userQuestsCollectionName, user.uid);
-
-    (async () => {
-      const snap = await getDoc(ref);
-      if (snap.exists()) {
-        const allQuests = snap.data().quests;
+    const loadQuests = async () => {
+      if (!user) return;
+      const docRef = doc(db, userQuestsCollectionName, user.uid); // adjust path to your actual collection/doc
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const allQuests = docSnap.data().quests || [];
         setPendingQuests(allQuests.filter(q => !q.done));
         setCompletedQuests(allQuests.filter(q => q.done));
       } else {
-        const initialQuests = [{ id: 1, name: "Building this app", xp: 10, done: false }];
-        await setDoc(ref, { quests: initialQuests });
-        setPendingQuests(initialQuests);
+        setPendingQuests([]);
         setCompletedQuests([]);
       }
-    })();
-  }, [user]);
+    };
+
+    loadQuests();
+  }, [db, user]);
 
   if (loading) return <p>Loading...</p>;
 

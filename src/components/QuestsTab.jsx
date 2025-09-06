@@ -3,16 +3,13 @@ import { saveQuests } from "../services/questService";
 import { useState } from "react";
 
 export default function QuestsTab({
-  db, user, completedQuests, setCompletedQuests,
+  db, user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests,
 }) {
-  const [pendingQuests, setPendingQuests] = useState([]);
-  const [isShowCompletedQuests, setIsShowCompletedQuests] = useState(false);
-  const [isEditingQuest, setIsEditingQuest] = useState(null);
+  const [isEditingQuest, setIsEditingQuest] = useState([false, null]);
   const [isAddingQuest, setIsAddingQuest] = useState(null);
+  const [isShowCompletedQuests, setIsShowCompletedQuests] = useState(false);
 
-  const [editName, setEditName] = useState("");
-  const [editXP, setEditXP] = useState(0);
-  const [newQuestName, setNewQuestName] = useState("");
+  const [newName, setNewName] = useState("");
   const [newHoursEstimate, setNewHoursEstimate] = useState(0);
 
   const saveQuestsWrapper = async (allQuests) => {
@@ -60,56 +57,55 @@ export default function QuestsTab({
     setIsAddingQuest(false);
   };
 
-  const editQuest = (q) => {
-    setIsEditingQuest(q);
-    setEditName(q.name);
-    setEditXP(q.xp);
-  };  
-
-  const handleEditSave = async (e) => {
+  const editQuest = async (e, name, hoursEstimate) => {
     e.preventDefault();
-    const updatedQuest = { ...isEditingQuest, name: editName, xp: Number(editXP) };
-    const allQuests = [...pendingQuests, ...completedQuests].map(q =>
-      q.id === isEditingQuest.id ? updatedQuest : q
+    const updatedQuests = [...pendingQuests, ...completedQuests].map(q =>
+      q.id === isEditingQuest[1]
+        ? createQuestDTO({
+            ...q,                       // keep existing fields (id, done, etc.)
+            name,
+            hoursEstimate: Number(hoursEstimate),
+          })
+        : q
     );
-    await saveQuestsWrapper(allQuests);
-    setPendingQuests(allQuests.filter(q => !q.done));
-    setCompletedQuests(allQuests.filter(q => q.done));
-    setIsEditingQuest(null);
+    await saveQuestsWrapper(updatedQuests);
+    setPendingQuests(updatedQuests.filter(q => !q.done));
+    setCompletedQuests(updatedQuests.filter(q => q.done));
+    setIsEditingQuest([false, null]);
   };
 
   return (
     <>
       <h2>Pending Quests</h2>
-      {pendingQuests.length === 0 && <p>No pending quests. Add your first quest!</p>}
+      {pendingQuests.length === 0 && <p>No pending quests. Add your next quest!</p>}
       <ul>
         {pendingQuests.map(q => (
           <li key={q.id}>
             {q.name} ({q.hoursEstimate} hours)
             <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>Done</button>
             <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>Delete</button>
-            {!isEditingQuest && !isAddingQuest && <button style={{ marginLeft: "0.5rem" }} onClick={() => editQuest(q)}>Edit</button>}
+            {!isEditingQuest[0] && !isAddingQuest && <button style={{ marginLeft: "0.5rem" }} onClick={() => setIsEditingQuest([true, q.id])}>Edit</button>}
           </li>
         ))}
       </ul>
 
-      {isEditingQuest && (
-        <form onSubmit={handleEditSave} style={{ marginTop: "1rem" }}>
-          <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required />
-          <input type="number" value={editXP} onChange={e => setEditXP(e.target.value)} required style={{ width: "60px", marginLeft: "0.5rem" }} />
+      {isEditingQuest[0] && (
+        <form onSubmit={(e) => editQuest(e, newName, newHoursEstimate)} style={{ marginTop: "1rem" }}>
+          <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required />
+          <input type="number" value={newHoursEstimate} onChange={e => setNewHoursEstimate(e.target.value)} required style={{ width: "60px", marginLeft: "0.5rem" }} />
           <button type="submit" style={{ marginLeft: "0.5rem" }}>Save</button>
-          <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIsEditingQuest(null)}>Cancel</button>
+          <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIsEditingQuest([false, null])}>Cancel</button>
         </form>
       )}
       {isAddingQuest && (
-        <form onSubmit={(e) => addQuest(e, newQuestName, newHoursEstimate)} style={{ marginTop: "1rem" }}>
-          <input type="text" placeholder="Quest name" value={newQuestName} onChange={e => setNewQuestName(e.target.value)} required />
+        <form onSubmit={(e) => addQuest(e, newName, newHoursEstimate)} style={{ marginTop: "1rem" }}>
+          <input type="text" placeholder="Quest name" value={newName} onChange={e => setNewName(e.target.value)} required />
           <input type="number" placeholder="hoursEstimate" value={newHoursEstimate} onChange={e => setNewHoursEstimate(e.target.value)} required style={{ width: "60px", marginLeft: "0.5rem" }} />
           <button type="submit" style={{ marginLeft: "0.5rem" }}>Add</button>
           <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIsAddingQuest(false)}>Cancel</button>
         </form>
       )}
-      {!isAddingQuest && !isEditingQuest && <button onClick={() => setIsAddingQuest(true)}>+ Add Quest</button>}
+      {!isAddingQuest && !isEditingQuest[0] && <button onClick={() => setIsAddingQuest(true)}>+ Add Quest</button>}
 
       <button style={{ marginTop: "1rem" }} onClick={() => setIsShowCompletedQuests(!isShowCompletedQuests)}>
         {isShowCompletedQuests ? "Hide Completed Quests" : "See Completed Quests"}
@@ -121,13 +117,11 @@ export default function QuestsTab({
           <ul>
             {completedQuests.map(q => (
               <li key={q.id}>
-                {q.name} (+{q.xp} XP)
+                {q.name} (+{q.hoursEstimate} hours)
                 <button style={{ marginLeft: "1rem" }} onClick={() => revertQuest(q.id)}>Revert</button>
                 <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>Delete</button>
                 <button style={{ marginLeft: "0.5rem" }} onClick={() => {
-                  setIsEditingQuest(q);
-                  setEditName(q.name);
-                  setEditXP(q.xp);
+                  setIsEditingQuest([true, q.id]);
                 }}>Edit</button>
               </li>
             ))}
