@@ -10,6 +10,15 @@ import InfoTab from "./components/InfoTab";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { collectionName as questsCollection } from "./services/questService";
 
+// TODO: 
+// - Make CRUD operations more extensive for both goals and quests (e.g. possible to add deadline, QuestsCoverFKs, etc.)
+// - create fixed categories collection and show it in info tab + link goals to categories
+// - import quests from google calendar
+// - make hoursEstimate a range 2^n to 2^{n+1} with n natural (easier to estimate quickly)
+// - add priority to quests and use it in sorting (e.g. high, medium, low mapped to 3,2,1)
+// - default value for deadlines 1 hours after start time + hoursEstimate
+// - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it
+
 function App() {
   const [user, loading] = useAuthState(auth);
   const [pendingQuests, setPendingQuests] = useState([]);
