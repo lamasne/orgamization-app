@@ -6,6 +6,7 @@ import { Auth } from "./components/Auth";
 import { signOut } from "firebase/auth";
 import QuestsTab from "./components/QuestsTab";
 import GoalsTab from "./components/GoalsTab";
+import InfoTab from "./components/InfoTab";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { collectionName as questsCollection } from "./services/questService";
 
@@ -18,7 +19,6 @@ function App() {
   const totalXP = completedQuests.reduce((a, q) => a + q.hoursEstimate, 0);
   const level = Math.floor(totalXP / 50) + 1;
 
-  // Load quests from Firestore
   const loadQuests = async () => {
     if (!user) return;
 
@@ -42,7 +42,7 @@ function App() {
     <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
       {!user ? <Auth /> : (
         <>
-          <h1>OrGamization: Gamifying Organization</h1>
+          <h1>OrGamization App</h1>
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             <p style={{ margin: 0 }}>Welcome {user.displayName || user.email}</p>
             <button onClick={() => signOut(auth)}>Logout</button>
@@ -68,6 +68,12 @@ function App() {
             >
               Goals
             </button>
+            <button
+              className={activeTab === "info" ? "active" : ""}
+              onClick={() => setActiveTab("info")}
+            >
+              Info
+            </button>
           </div>
 
           <div style={{ marginTop: "1rem" }}>
@@ -86,6 +92,11 @@ function App() {
                 user={user}
                 activeTab={activeTab}
               />
+            )}
+            {activeTab === "info" && (
+              <div style={{ textAlign: "left" }}>
+                <InfoTab />
+              </div>
             )}
           </div>
         </>
