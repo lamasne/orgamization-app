@@ -1,11 +1,8 @@
-import { db } from "../config/firebase-config";
-import { doc } from "firebase/firestore";
-import { collectionName } from "../services/questService";
 
 
 export const createQuestDTO = ({
-  user,
-  id = doc(db, collectionName, user.uid).id,   // Firestore-generated unique ID
+  id=crypto.randomUUID(),
+  userId,
   name = "",
   deadline = "",
   startEstimate = "",
@@ -17,6 +14,7 @@ export const createQuestDTO = ({
   childrenTasksFKs = []
 } = {}) => ({
   id,
+  userId,
   name,
   deadline,
   startEstimate,

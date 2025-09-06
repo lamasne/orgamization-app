@@ -1,13 +1,13 @@
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import './App.css';
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "./config/firebase-config";
 import { Auth } from "./components/Auth";
 import { signOut } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import QuestsTab from "./components/QuestsTab";
 import GoalsTab from "./components/GoalsTab";
-import { collectionName as userQuestsCollectionName } from "./services/questService";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { collectionName as questsCollection } from "./services/questService";
 
 function App() {
   const [user, loading] = useAuthState(auth);
@@ -19,24 +19,23 @@ function App() {
   const level = Math.floor(totalXP / 50) + 1;
 
   // Load quests from Firestore
-  useEffect(() => {
-    const loadQuests = async () => {
-      if (!user) return;
-      const docRef = doc(db, userQuestsCollectionName, user.uid); // adjust path to your actual collection/doc
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const allQuests = docSnap.data().quests || [];
-        setPendingQuests(allQuests.filter(q => !q.done));
-        setCompletedQuests(allQuests.filter(q => q.done));
-      } else {
-        setPendingQuests([]);
-        setCompletedQuests([]);
-      }
-    };
+  const loadQuests = async () => {
+    if (!user) return;
 
+    const q = query(
+      collection(db, questsCollection),
+      where("userId", "==", user.uid)
+    );
+    const snap = await getDocs(q);
+
+    const allQuests = snap.docs.map(doc => doc.data());
+    setPendingQuests(allQuests.filter(q => !q.done));
+    setCompletedQuests(allQuests.filter(q => q.done));
+  };
+
+  useEffect(() => {
     loadQuests();
   }, [db, user]);
-
   if (loading) return <p>Loading...</p>;
 
   return (
@@ -56,7 +55,10 @@ function App() {
           <div className="tab-buttons">
             <button
               className={activeTab === "quests" ? "active" : ""}
-              onClick={() => setActiveTab("quests")}
+              onClick={() => {
+                setActiveTab("quests");
+                loadQuests(); // refresh quests when switching to this tab
+              }}
             >
               Quests
             </button>
@@ -71,7 +73,6 @@ function App() {
           <div style={{ marginTop: "1rem" }}>
             {activeTab === "quests" && (
               <QuestsTab
-                db={db}
                 user={user}
                 pendingQuests={pendingQuests}
                 setPendingQuests={setPendingQuests}
@@ -79,7 +80,13 @@ function App() {
                 setCompletedQuests={setCompletedQuests}
               />
             )}
-            {activeTab === "goals" && <GoalsTab />}
+            {activeTab === "goals" && (
+              <GoalsTab
+                db={db}
+                user={user}
+                activeTab={activeTab}
+              />
+            )}
           </div>
         </>
       )}

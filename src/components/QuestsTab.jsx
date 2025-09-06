@@ -1,9 +1,9 @@
 import { createQuestDTO } from "../DTOs/QuestDTO";
-import { saveQuests } from "../services/questService";
+import { saveQuest, deleteQuests } from "../services/questService";
 import { useState } from "react";
 
 export default function QuestsTab({
-  db, user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests,
+  user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests,
 }) {
   const [isEditingQuest, setIsEditingQuest] = useState([false, null]);
   const [isAddingQuest, setIsAddingQuest] = useState(null);
@@ -12,16 +12,11 @@ export default function QuestsTab({
   const [newName, setNewName] = useState("");
   const [newHoursEstimate, setNewHoursEstimate] = useState(0);
 
-  const saveQuestsWrapper = async (allQuests) => {
-    if (!user) return;
-    await saveQuests(db, user.uid, allQuests);
-  };
-
   const markDone = async (id) => {
     const updatedPending = pendingQuests.filter(q => q.id !== id);
     const doneQuest = pendingQuests.find(q => q.id === id);
     const updatedCompleted = [...completedQuests, { ...doneQuest, done: true }];
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
+    await saveQuest(user.uid, { ...doneQuest, done: true });
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
@@ -30,16 +25,16 @@ export default function QuestsTab({
     const updatedCompleted = completedQuests.filter(q => q.id !== id);
     const revertedQuest = completedQuests.find(q => q.id === id);
     const updatedPending = [...pendingQuests, { ...revertedQuest, done: false }];
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
+    await saveQuest(user.uid, { ...revertedQuest, done: false });
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
 
-  const deleteQuest = async (id) => {
+  const deleteQuestWrapper = async (id) => {
     if (!window.confirm("Are you sure? This action is irreversible.")) return;
     const updatedPending = pendingQuests.filter(q => q.id !== id);
     const updatedCompleted = completedQuests.filter(q => q.id !== id);
-    await saveQuestsWrapper([...updatedPending, ...updatedCompleted]);
+    await deleteQuests(user.uid, [id]);
     setPendingQuests(updatedPending);
     setCompletedQuests(updatedCompleted);
   };
@@ -47,28 +42,31 @@ export default function QuestsTab({
   const addQuest = async (e, name, hoursEstimate) => {
     e.preventDefault(); // Prevent refreshing and losing states
     const newQuest = createQuestDTO({
-      user: user, 
+      userId: user.uid,
       name: name,
       hoursEstimate: Number(hoursEstimate),
-    });    
-    const allQuests = [...pendingQuests, newQuest, ...completedQuests];
-    await saveQuestsWrapper(allQuests);
+    });
+    await saveQuest(user.uid, newQuest);
     setPendingQuests([...pendingQuests, newQuest]);
     setIsAddingQuest(false);
   };
 
   const editQuest = async (e, name, hoursEstimate) => {
     e.preventDefault();
-    const updatedQuests = [...pendingQuests, ...completedQuests].map(q =>
-      q.id === isEditingQuest[1]
-        ? createQuestDTO({
-            ...q,                       // keep existing fields (id, done, etc.)
-            name,
-            hoursEstimate: Number(hoursEstimate),
-          })
-        : q
+    const allQuests = [...pendingQuests, ...completedQuests];
+    const questIdx = allQuests.findIndex(q => q.id === isEditingQuest[1]);
+    if (questIdx === -1) return;
+
+    const updatedQuest = {
+      ...allQuests[questIdx],
+      name,
+      hoursEstimate: Number(hoursEstimate),
+    };
+    await saveQuest(user.uid, updatedQuest);
+
+    const updatedQuests = allQuests.map(q =>
+      q.id === updatedQuest.id ? updatedQuest : q
     );
-    await saveQuestsWrapper(updatedQuests);
     setPendingQuests(updatedQuests.filter(q => !q.done));
     setCompletedQuests(updatedQuests.filter(q => q.done));
     setIsEditingQuest([false, null]);
@@ -83,8 +81,13 @@ export default function QuestsTab({
           <li key={q.id}>
             {q.name} ({q.hoursEstimate} hours)
             <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>Done</button>
-            <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>Delete</button>
-            {!isEditingQuest[0] && !isAddingQuest && <button style={{ marginLeft: "0.5rem" }} onClick={() => setIsEditingQuest([true, q.id])}>Edit</button>}
+            <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuestWrapper(q.id)}>Delete</button>
+            {!isEditingQuest[0] && !isAddingQuest && <button style={{ marginLeft: "0.5rem" }} onClick={() => {
+              const quest = pendingQuests.concat(completedQuests).find(x => x.id === q.id);
+              setNewName(quest.name);
+              setNewHoursEstimate(quest.hoursEstimate);
+              setIsEditingQuest([true, q.id]);
+            }}>Edit</button>}
           </li>
         ))}
       </ul>
@@ -119,7 +122,7 @@ export default function QuestsTab({
               <li key={q.id}>
                 {q.name} (+{q.hoursEstimate} hours)
                 <button style={{ marginLeft: "1rem" }} onClick={() => revertQuest(q.id)}>Revert</button>
-                <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuest(q.id)}>Delete</button>
+                <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuestWrapper(q.id)}>Delete</button>
                 <button style={{ marginLeft: "0.5rem" }} onClick={() => {
                   setIsEditingQuest([true, q.id]);
                 }}>Edit</button>
