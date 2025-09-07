@@ -11,7 +11,10 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { collectionName as questsCollection } from "./services/questService";
 
 // TODO: 
-// - Make CRUD operations more extensive for both goals and quests (e.g. possible to add deadline, QuestsCoverFKs, link goals to categories, etc.)
+// - In markDone, a popup to update hoursSpent should be appear
+// - show hoursSpent instead of hoursEstimate in completed quests in GoalTabs too
+// - Make CRUD operations more extensive for both goals and quest:
+// * others attributes e.g. possible to add deadline, start, link goals to categories, etc.
 // - import quests from google calendar
 // - add priority to quests and use it in sorting (e.g. high, medium, low mapped to 3,2,1)
 // - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it
@@ -23,7 +26,7 @@ function App() {
   const [completedQuests, setCompletedQuests] = useState([]);
   const [activeTab, setActiveTab] = useState("quests");
 
-  const totalXP = completedQuests.reduce((a, q) => a + q.hoursEstimate, 0);
+  const totalXP = completedQuests.reduce((a, q) => a + q.hoursSpent, 0);
   const level = Math.floor(totalXP / 50) + 1;
 
   const loadQuests = async () => {
@@ -91,6 +94,7 @@ function App() {
                 setPendingQuests={setPendingQuests}
                 completedQuests={completedQuests}
                 setCompletedQuests={setCompletedQuests}
+                activeTab={activeTab}
               />
             )}
             {activeTab === "goals" && (

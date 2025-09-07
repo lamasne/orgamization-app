@@ -51,6 +51,9 @@ export default function InfoTab() {
     <div className="p-6 max-w-3xl mx-auto">
 
       <h1 className="text-3xl font-bold mb-6">Gamifying Organization</h1>
+
+      {/* <h2 className="text-2xl font-bold mb-4">Instructions</h2> */}
+
       <h2 className="text-2xl font-bold mb-4">Activities and Goals</h2>
 
       <p className="mb-4">
