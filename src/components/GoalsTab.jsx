@@ -80,9 +80,10 @@ export default function GoalsTab({ db, user, activeTab }) {
         userId: user.uid,
         name: `Define a cover of tasks for goal: ${newName}`,
         hoursEstimate: 1,
+        motherGoalsFKs: [newGoal.id],
+        comment: "This is a default task created automatically.",
       });
       await saveQuest(user.uid, defaultTask);
-      newGoal.tasksCoverFKs = [defaultTask.id];
     }
 
     await saveGoal(user.uid, newGoal);

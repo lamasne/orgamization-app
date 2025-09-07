@@ -1,4 +1,52 @@
+import { useEffect, useState } from "react";
+import { collection, getDocs, setDoc, doc } from "firebase/firestore";
+import { db } from "../config/firebase-config";
+
+
+const fundamentalCategoriesData = [
+  { id: "1", name: "Source of income" },
+  { id: "2", name: "Resource management", desc: "Buy, repair, clean, consume items such as food and furniture." },
+  { id: "3", name: "Social relationships", desc: "Lover, sexual partner, friend/family, public image" },
+  { id: "4", name: "Mental improvement and maintenance", desc: "Mental improvement and maintenance (e.g. learning, problem-solving), fantasize (e.g., dreaming, reading, movies), videogames, meditating" },
+  { id: "5", name: "Physical activity", desc: "Body improvement and maintenance, dance, sex, sport, massages" }
+];
+
+// // Code to fetch and print a JSON representation of the fundamentalCategories collection - used to create a backup of it
+// const fetchAndGenerateCode = async () => {
+//   try {
+//     const snapshot = await getDocs(collection(db, "fundamentalCategories"));
+//     const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+//     console.log("const fundamentalCategoriesData = ", JSON.stringify(data, null, 2), ";");
+//   } catch (err) {
+//     console.error(err);
+//   }
+// };
+
 export default function InfoTab() {
+  const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    const fetchOrPopulateCategories = async () => {
+      try {
+        const snapshot = await getDocs(collection(db, "fundamentalCategories"));
+        if (snapshot.empty) {
+          console.log("Collection empty, creating default categories...");
+          for (const cat of fundamentalCategoriesData) {
+            await setDoc(doc(db, "fundamentalCategories", cat.id), cat);
+          }
+          setCategories(fundamentalCategoriesData);
+        } else {
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error("Error fetching or creating categories:", err);
+      }
+    };
+
+    fetchOrPopulateCategories();
+  }, []);
+
   return (
     <div className="p-6 max-w-3xl mx-auto">
 
@@ -42,38 +90,16 @@ export default function InfoTab() {
         i.e., human beings, body, and mind.
       </p>
 
-      <h2 className="text-xl font-semibold mb-2">
-        Activities categories according to goal behind
-      </h2>
-
-      <ol className="list-decimal list-inside space-y-2">
-        <li>
-          Source of income
-        </li>
-        <li>
-          Resource management (e.g. buy, repair, clean, etc.)
-          <ul className="list-disc list-inside ml-6">
-            <li>Food &amp; Home related objects</li>
-            <li>Other</li>
-          </ul>
-        </li>
-        <li>
-          Social relationships
-          <ul className="list-disc list-inside ml-6">
-            <li>Lover</li>
-            <li>Family</li>
-            <li>Friends</li>
-            <li>Public image</li>
-          </ul>
-        </li>
-        <li>
-          Me
-          <ul className="list-disc list-inside ml-6">
-            <li>Mental activity</li>
-            <li>Physical activity</li>
-          </ul>
-        </li>
-      </ol>
+      <div className="p-6 max-w-3xl mx-auto">
+        <h2 className="text-xl font-semibold mb-2">
+          Fundamental Activity Categories
+        </h2>
+        <ul>
+          {categories.map(cat => (
+            <li key={cat.id}>{cat.name} {cat.desc && `- ${cat.desc}`}</li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
