@@ -1,4 +1,4 @@
-import { Goal } from "../domain/goal";
+import { Goal } from "../models/Goal";
 
 // Mapper
 export const GoalMapper = {

@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
-import { Quest } from "../domain/quest";
+import { useState } from "react";
+import { Quest } from "../models/Quest";
 import { QuestRepository } from "../repositories/QuestRepository";
-import { GoalRepository } from "../repositories/GoalRepository";
+import useQuestsTabManager from "../hooks/useQuestsTabManager";
 
 export default function QuestsTab({
-  user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests, activeTab
+  user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests, activeTab, thisTab
 }) {
-  const [isEditingQuest, setIsEditingQuest] = useState([false, null]);
+  const [idQuestBeingEdited, setIdQuestBeingEdited] = useState(null);
+  const isEditingQuest = idQuestBeingEdited !== null;
   const [isAddingQuest, setIsAddingQuest] = useState(null);
   const [isShowCompletedQuests, setIsShowCompletedQuests] = useState(false);
 
@@ -16,40 +17,13 @@ export default function QuestsTab({
 
   const [allGoalsMap, setAllGoalsMap] = useState({}); // id -> name
 
-  // Fetch all goal names on mount or when going back to quest tab
-  useEffect(() => {
-    if (activeTab !== "quests") return;
-    GoalRepository.findUserGoals(user.uid).then(goals => {
-      const map = {};
-      goals.forEach(g => { map[g.id] = g.name; });
-      setAllGoalsMap(map);
-    });
-  }, [activeTab, user]);
+  const manager = useQuestsTabManager({
+    user, pendingQuests, setPendingQuests, completedQuests, setCompletedQuests, activeTab, thisTab,
+    setAllGoalsMap,
+    saveItem: (uid, quest) => QuestRepository.saveQuest(uid, quest),
+    deleteItems: (uid, ids) => QuestRepository.deleteMany(uid, ids)
+  });
 
-  const markDone = async (id) => {
-    const quest = pendingQuests.find(q => q.id === id);
-    if (!quest) return;
-    quest.done = true;
-    await QuestRepository.saveQuest(user.uid, quest);
-    setPendingQuests(pendingQuests.filter(q => q.id !== id));
-    setCompletedQuests([...completedQuests, quest]);
-  };
-
-  const revertQuest = async (id) => {
-    const quest = completedQuests.find(q => q.id === id);
-    if (!quest) return;
-    quest.done = false;
-    await QuestRepository.saveQuest(user.uid, quest);
-    setCompletedQuests(completedQuests.filter(q => q.id !== id));
-    setPendingQuests([...pendingQuests, quest]);
-  };
-
-  const deleteQuestWrapper = async (id) => {
-    if (!window.confirm("Are you sure? This action is irreversible.")) return;
-    await QuestRepository.deleteMany(user.uid, [id]);
-    setPendingQuests(pendingQuests.filter(q => q.id !== id));
-    setCompletedQuests(completedQuests.filter(q => q.id !== id));
-  };
 
   const addQuest = async (e) => {
     e.preventDefault();
@@ -74,10 +48,11 @@ export default function QuestsTab({
     setNewName(""); setNewMotherGoalsFKs(""); setNewHoursEstimate("");
   };
 
+
   const editQuest = async (e) => {
     e.preventDefault();
     const quest = pendingQuests.concat(completedQuests)
-      .find(q => q.id === isEditingQuest[1]);
+      .find(q => q.id === idQuestBeingEdited);
     if (!quest) return;
 
     const hoursArr = typeof newHoursEstimate === "string"
@@ -99,43 +74,52 @@ export default function QuestsTab({
     );
     setPendingQuests(updatedQuests.filter(q => !q.done));
     setCompletedQuests(updatedQuests.filter(q => q.done));
-    setIsEditingQuest([false, null]);
+    setIdQuestBeingEdited(null);
   };
+
+
+  const renderQuest = (q, isDone, isEditingQuest, isAddingQuest) => (
+      <li key={q.id}>
+      {q.name}{" | "}
+      {(q.motherGoalsFKs && q.motherGoalsFKs.length > 0) 
+        ? q.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
+        : "No mother goals"}{" | "}
+      {(Array.isArray(q.hoursEstimate) && q.hoursEstimate.length === 2) 
+        ? `${q.hoursEstimate[0]}-${q.hoursEstimate[1]}` 
+        : q.hoursEstimate}{" hour(s)"}
+        <button
+          style={{ marginLeft: "1rem" }}
+          onClick={() => manager.changeStatus(q)}
+        >
+          {isDone ? "Revert" : "Done"}
+        </button>
+      <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => manager.remove(q.id)}>Delete</button>
+      {!isEditingQuest && !isAddingQuest && (
+        <button style={{ marginLeft: "0.5rem" }} onClick={() => {
+          const quest = pendingQuests.find(x => x.id === q.id);
+          setNewName(quest.name);
+          setNewHoursEstimate(Array.isArray(quest.hoursEstimate) ? quest.hoursEstimate.join(",") : quest.hoursEstimate);
+          setNewMotherGoalsFKs(
+            (quest.motherGoalsFKs && quest.motherGoalsFKs.length > 0) 
+            ? quest.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
+            : ""
+          );
+          setIdQuestBeingEdited(q.id);
+        }}>Edit</button>
+      )}
+    </li>
+  );
+
 
   return (
     <>
       <h2>Pending Quests</h2>
       {pendingQuests.length === 0 && <p>No pending quests. Add your next quest!</p>}
       <ul>
-        {pendingQuests.map(q => (
-          <li key={q.id}>
-          {q.name}{" | "}
-          {(q.motherGoalsFKs && q.motherGoalsFKs.length > 0) 
-            ? q.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
-            : "No mother goals"}{" | "}
-          ({q.hoursEstimate && q.hoursEstimate.length === 2 
-            ? `${q.hoursEstimate[0]}-${q.hoursEstimate[1]}` 
-            : q.hoursEstimate}{" "}hours)
-            <button style={{ marginLeft: "1rem" }} onClick={() => markDone(q.id)}>Done</button>
-            <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuestWrapper(q.id)}>Delete</button>
-            {!isEditingQuest[0] && !isAddingQuest && (
-              <button style={{ marginLeft: "0.5rem" }} onClick={() => {
-                const quest = pendingQuests.find(x => x.id === q.id);
-                setNewName(quest.name);
-                setNewHoursEstimate(Array.isArray(quest.hoursEstimate) ? quest.hoursEstimate.join(",") : quest.hoursEstimate);
-                setNewMotherGoalsFKs(
-                  (quest.motherGoalsFKs && quest.motherGoalsFKs.length > 0) 
-                  ? quest.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
-                  : ""
-                );
-                setIsEditingQuest([true, q.id]);
-              }}>Edit</button>
-          )}
-          </li>
-        ))}
+        {pendingQuests.map(q => (renderQuest(q, false, isEditingQuest, isAddingQuest)))}
       </ul>
 
-      {isEditingQuest[0] && (
+      {isEditingQuest && (
         <form onSubmit={(e) => editQuest(e, newName, newMotherGoalsFKs, newHoursEstimate)} style={{ marginTop: "1rem" }}>
           <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required />
           <select
@@ -164,7 +148,7 @@ export default function QuestsTab({
             <option value={"32,64"}>32-64 hours</option>
           </select>
           <button type="submit" style={{ marginLeft: "0.5rem" }}>Save</button>
-          <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIsEditingQuest([false, null])}>Cancel</button>
+          <button type="button" style={{ marginLeft: "0.5rem" }} onClick={() => setIdQuestBeingEdited(null)}>Cancel</button>
         </form>
       )}
       {isAddingQuest && (
@@ -209,30 +193,7 @@ export default function QuestsTab({
         <>
           <h2>Completed Quests</h2>
           <ul>
-            {completedQuests.map(q => (
-              <li key={q.id}>
-                {q.name}{" | "}
-                {(q.motherGoalsFKs && q.motherGoalsFKs.length > 0) 
-                  ? q.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
-                  : "No mother goals"}{" | "}
-                ({q.hoursSpent} hours)
-                <button style={{ marginLeft: "1rem" }} onClick={() => revertQuest(q.id)}>Revert</button>
-                <button style={{ marginLeft: "0.5rem", color: "red" }} onClick={() => deleteQuestWrapper(q.id)}>Delete</button>
-                {!isEditingQuest[0] && !isAddingQuest && (
-                  <button style={{ marginLeft: "0.5rem" }} onClick={() => {
-                    const quest = completedQuests.find(x => x.id === q.id);
-                    setNewName(quest.name);
-                    setNewHoursEstimate(Array.isArray(quest.hoursEstimate) ? quest.hoursEstimate.join(",") : quest.hoursEstimate);
-                    setNewMotherGoalsFKs(
-                      (quest.motherGoalsFKs && quest.motherGoalsFKs.length > 0) 
-                      ? quest.motherGoalsFKs.map(id => allGoalsMap[id] || id).join(", ") 
-                      : ""
-                    );
-                    setIsEditingQuest([true, q.id]);
-                  }}>Edit</button>
-                )}
-              </li>
-            ))}
+            {completedQuests.map(q => (renderQuest(q, true, isEditingQuest, isAddingQuest)))}
           </ul>
         </>
       )}

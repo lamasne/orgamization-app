@@ -1,5 +1,5 @@
 
-import { Quest } from "../domain/quest";
+import { Quest } from "../models/Quest";
 
 // Mapper
 export const QuestMapper = {
@@ -21,7 +21,8 @@ export const QuestMapper = {
     difficulty: Number(doc.difficulty),
     comment: doc.comment,
   }),
-  toDTO: (quest) => ({
+  toDTO: (quest) => {
+    return {
       id: quest.id,
       userId: quest.userId,
       motherGoalsFKs: quest.motherGoalsFKs,
@@ -29,14 +30,15 @@ export const QuestMapper = {
       startEstimate: quest.startEstimate ? quest.startEstimate.toISOString() : null,
       hoursEstimate: quest.hoursEstimate,
       deadline: quest.deadline
-        ? new Date(quest.deadline).toISOString().slice(0,16).replace('T', ' ')
+        ? quest.deadline.toISOString().slice(0,16).replace('T', ' ')
         : null, 
       // deadline: quest.deadline ? quest.deadline.toISOString() : null,
       hoursSpent: quest.hoursSpent,
       done: quest.done,
       difficulty: quest.difficulty,
       comment: quest.comment,
-  })
+    }
+  },
 };
 
 // Repository

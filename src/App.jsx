@@ -20,10 +20,15 @@ import { QuestRepository } from "./repositories/QuestRepository";
 // - Add color code for categories and show it in goals/quests
 
 function App() {
+
+  const questsTabName = "quests"
+  const goalsTabName = "goals"
+  const infoTabName = "info"
+
   const [user, loading] = useAuthState(auth);
   const [pendingQuests, setPendingQuests] = useState([]);
   const [completedQuests, setCompletedQuests] = useState([]);
-  const [activeTab, setActiveTab] = useState("quests");
+  const [activeTab, setActiveTab] = useState(questsTabName);
 
   const totalXP = completedQuests.reduce((a, q) => a + q.hoursSpent, 0);
   const level = Math.floor(totalXP / 50) + 1;
@@ -56,30 +61,30 @@ function App() {
 
           <div className="tab-buttons">
             <button
-              className={activeTab === "quests" ? "active" : ""}
+              className={activeTab === questsTabName ? "active" : ""}
               onClick={() => {
-                setActiveTab("quests");
+                setActiveTab(questsTabName);
                 loadQuests(); // refresh quests when switching to this tab
               }}
             >
               Quests
             </button>
             <button
-              className={activeTab === "goals" ? "active" : ""}
-              onClick={() => setActiveTab("goals")}
+              className={activeTab === goalsTabName ? "active" : ""}
+              onClick={() => setActiveTab(goalsTabName)}
             >
               Goals
             </button>
             <button
-              className={activeTab === "info" ? "active" : ""}
-              onClick={() => setActiveTab("info")}
+              className={activeTab === infoTabName ? "active" : ""}
+              onClick={() => setActiveTab(infoTabName)}
             >
               Info
             </button>
           </div>
 
           <div style={{ marginTop: "1rem" }}>
-            {activeTab === "quests" && (
+            {activeTab === questsTabName && (
               <QuestsTab
                 user={user}
                 pendingQuests={pendingQuests}
@@ -87,16 +92,17 @@ function App() {
                 completedQuests={completedQuests}
                 setCompletedQuests={setCompletedQuests}
                 activeTab={activeTab}
+                thisTab={questsTabName}
               />
             )}
-            {activeTab === "goals" && (
+            {activeTab === goalsTabName && (
               <GoalsTab
                 db={db}
                 user={user}
                 activeTab={activeTab}
               />
             )}
-            {activeTab === "info" && (
+            {activeTab === infoTabName && (
               <div style={{ textAlign: "left" }}>
                 <InfoTab />
               </div>

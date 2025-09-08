@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Goal } from "../domain/goal";
+import { Goal } from "../models/Goal";
 import { GoalRepository } from "../repositories/GoalRepository";
-import { Quest } from "../domain/quest";
+import { Quest } from "../models/Quest";
 import { QuestRepository } from "../repositories/QuestRepository";
 
 

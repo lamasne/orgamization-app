@@ -4,7 +4,7 @@ export class Goal {
     userId,
     name,
     categoriesFKs = [],
-    deadline = Date.now() + 7 * 24 * 3600000, // default deadline one week from now
+    deadline = new Date(Date.now() + 7 * 24 * 3600000), // default deadline one week from now
     done = false,
     comment = "",
   } = {}) {

@@ -5,7 +5,7 @@ export class Quest {
     userId,
     motherGoalsFKs,
     name = "",
-    startEstimate = Date.now(),
+    startEstimate = null,
     hoursEstimate = [1, 2],
     deadline,
     hoursSpent = 0,
@@ -17,9 +17,9 @@ export class Quest {
     this.userId = userId;
     this.motherGoalsFKs = motherGoalsFKs;
     this.name = name;
-    this.startEstimate = startEstimate;
+    this.startEstimate = startEstimate ? new Date(startEstimate) : new Date();
     this.hoursEstimate = hoursEstimate;
-    this.deadline = deadline || this.startEstimate + 3600000 * (  1 + this.hoursEstimate[1]); // default deadline 1 hour after estimated end time
+    this.deadline = deadline ? new Date(deadline) : new Date(this.startEstimate + 3600000 * (  1 + this.hoursEstimate[1])); // default deadline 1 hour after estimated end time
     this.hoursSpent = hoursSpent;
     this.done = done;
     this.difficulty = difficulty; // scale of 1-10
