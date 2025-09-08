@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { createGoalDTO } from "../DTOs/GoalDTO";
-import { createQuestDTO } from "../DTOs/QuestDTO";
-import { saveGoal, deleteGoals } from "../services/goalService";
-import { saveQuest } from "../services/questService";
+import { Goal } from "../domain/goal";
+import { GoalRepository } from "../repositories/GoalRepository";
+import { Quest } from "../domain/quest";
+import { QuestRepository } from "../repositories/QuestRepository";
+
 
 export default function GoalsTab({ db, user, activeTab }) {
   const [pendingGoals, setPendingGoals] = useState([]);
@@ -16,77 +16,70 @@ export default function GoalsTab({ db, user, activeTab }) {
   const [newHoursEstimate, setNewHoursEstimate] = useState(0);
 
   // Load all goals for the current user
-  const loadGoals = async () => {
+  const loadUserGoals = async () => {
     if (!user) return;
-    const q = query(
-      collection(db, "goals"),
-      where("userId", "==", user.uid)
-    );
-    const querySnap = await getDocs(q);
-    const allGoals = querySnap.docs.map((d) => d.data());
+    const allGoals = await GoalRepository.findUserGoals(user.uid);
     setPendingGoals(allGoals.filter((g) => !g.done));
     setCompletedGoals(allGoals.filter((g) => g.done));
   };
 
   // load on mount and whenever user/db init or changes
   useEffect(() => {
-    loadGoals();
+    loadUserGoals();
   }, [db, user]);
 
   // additionally, reload whenever the Goals tab becomes active
   useEffect(() => {
     if (activeTab === "goals") {
-      loadGoals();
+      loadUserGoals();
     }
   }, [activeTab]);
 
   const markDone = async (id) => {
-    const goal = pendingGoals.find((g) => g.id === id);
+    const goal = pendingGoals.find(g => g.id === id);
     if (!goal) return;
-    const updated = { ...goal, done: true };
-    await saveGoal(user.uid, updated);
-    setPendingGoals(pendingGoals.filter((g) => g.id !== id));
-    setCompletedGoals([...completedGoals, updated]);
+    goal.done = true;
+    await GoalRepository.save(user.uid, goal);
+    setPendingGoals(pendingGoals.filter(g => g.id !== id));
+    setCompletedGoals([...completedGoals, goal]);
   };
 
   const revertGoal = async (id) => {
-    const goal = completedGoals.find((g) => g.id === id);
+    const goal = completedGoals.find(g => g.id === id);
     if (!goal) return;
-    const updated = { ...goal, done: false };
-    await saveGoal(user.uid, updated);
-    setCompletedGoals(completedGoals.filter((g) => g.id !== id));
-    setPendingGoals([...pendingGoals, updated]);
+    goal.done = false;
+    await GoalRepository.save(user.uid, goal);
+    setCompletedGoals(completedGoals.filter(g => g.id !== id));
+    setPendingGoals([...pendingGoals, goal]);
   };
 
   const removeGoal = async (id) => {
     if (!window.confirm("Are you sure? This action is irreversible.")) return;
-    console.log("Deleting goal with id:", id);
-    await deleteGoals(user.uid, [id]);
-    setPendingGoals(pendingGoals.filter((g) => g.id !== id));
-    setCompletedGoals(completedGoals.filter((g) => g.id !== id));
+    await GoalRepository.deleteMany(user.uid, [id]);
+    setPendingGoals(pendingGoals.filter(g => g.id !== id));
+    setCompletedGoals(completedGoals.filter(g => g.id !== id));
   };
 
   const addGoal = async (e) => {
     e.preventDefault();
-    const newGoal = createGoalDTO({
+    const newGoal = new Goal({
       userId: user.uid,
       name: newName,
-      hoursEstimate: Number(newHoursEstimate),
     });
 
-    // Create default task if none exists
+    // Create default quest if none exists
     if (!newGoal.tasksCoverFKs || newGoal.tasksCoverFKs.length === 0) {
-      const defaultTask = createQuestDTO({
+      const defaultQuest = new Quest({
         userId: user.uid,
-        name: `Define a cover of tasks for goal: ${newName}`,
-        hoursEstimate: 1,
+        name: `Define tasks for goal: ${newName}`,
+        hoursEstimate: [1],
         motherGoalsFKs: [newGoal.id],
-        comment: "This is a default task created automatically.",
+        comment: "Default task created automatically"
       });
-      await saveQuest(user.uid, defaultTask);
+      await QuestRepository.save(user.uid, defaultQuest);
     }
 
-    await saveGoal(user.uid, newGoal);
+    await GoalRepository.save(user.uid, newGoal);
     setPendingGoals([...pendingGoals, newGoal]);
     setNewName("");
     setNewHoursEstimate(0);
@@ -100,18 +93,16 @@ export default function GoalsTab({ db, user, activeTab }) {
     );
     if (!goal) return;
 
-    const updatedGoal = {
-      ...goal,
-      name: newName,
-      hoursEstimate: Number(newHoursEstimate),
-    };
-    await saveGoal(user.uid, updatedGoal);
+    goal.name = newName;
+    goal.hoursEstimate = Number(newHoursEstimate);
 
-    const allGoals = [...pendingGoals, ...completedGoals].map((g) =>
-      g.id === updatedGoal.id ? updatedGoal : g
+    await GoalRepository.save(user.uid, goal);
+
+    const allGoals = [...pendingGoals, ...completedGoals].map(
+      (g) => g.id === goal.id ? goal : g
     );
-    setPendingGoals(allGoals.filter((g) => !g.done));
-    setCompletedGoals(allGoals.filter((g) => g.done));
+    setPendingGoals(allGoals.filter(g => !g.done));
+    setCompletedGoals(allGoals.filter(g => g.done));
     setIsEditingGoal([false, null]);
     setNewName("");
     setNewHoursEstimate(0);

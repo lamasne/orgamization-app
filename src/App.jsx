@@ -7,8 +7,7 @@ import { signOut } from "firebase/auth";
 import QuestsTab from "./components/QuestsTab";
 import GoalsTab from "./components/GoalsTab";
 import InfoTab from "./components/InfoTab";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import { collectionName as questsCollection } from "./services/questService";
+import { QuestRepository } from "./repositories/QuestRepository";
 
 // TODO: 
 // - In markDone, a popup to update hoursSpent should be appear
@@ -31,14 +30,7 @@ function App() {
 
   const loadQuests = async () => {
     if (!user) return;
-
-    const q = query(
-      collection(db, questsCollection),
-      where("userId", "==", user.uid)
-    );
-    const snap = await getDocs(q);
-
-    const allQuests = snap.docs.map(doc => doc.data());
+    const allQuests = await QuestRepository.findByUserId(user.uid);
     setPendingQuests(allQuests.filter(q => !q.done));
     setCompletedQuests(allQuests.filter(q => q.done));
   };
