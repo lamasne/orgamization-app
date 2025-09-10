@@ -10,7 +10,7 @@ export default defineConfig({
       manifest: {
         name: 'OrGamization',
         short_name: 'OrGamization',
-        description: 'Quant Prep XP Tracker as a PWA',
+        description: 'Gamified Organizational App as a PWA',
         theme_color: '#ffffff',
         icons: [
           {

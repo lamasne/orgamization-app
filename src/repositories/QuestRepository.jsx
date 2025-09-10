@@ -7,12 +7,12 @@ export const QuestMapper = {
     id: doc.id || "",
     userId: doc.userId || "",
     name : doc.name || "",
-    motherGoalsFKs: doc.motherGoalsFKs || [],
+    motherGoalsFks: doc.motherGoalsFks || [],
     // Date (formatted as 'YYYY-MM-DD HH:mm')
     startEstimate: doc.startEstimate
       ? new Date(doc.startEstimate)
       : null,
-    hoursEstimate: doc.hoursEstimate ? doc.hoursEstimate.map(Number) : [],
+    hoursRange: doc.hoursRange ? doc.hoursRange.map(Number) : [],
     deadline: doc.deadline
       ? new Date(doc.deadline)
       : null,
@@ -25,10 +25,10 @@ export const QuestMapper = {
     return {
       id: quest.id,
       userId: quest.userId,
-      motherGoalsFKs: quest.motherGoalsFKs,
+      motherGoalsFks: quest.motherGoalsFks,
       name: quest.name,
       startEstimate: quest.startEstimate ? quest.startEstimate.toISOString() : null,
-      hoursEstimate: quest.hoursEstimate,
+      hoursRange: quest.hoursRange,
       deadline: quest.deadline
         ? quest.deadline.toISOString().slice(0,16).replace('T', ' ')
         : null, 
@@ -55,7 +55,7 @@ export const QuestRepository = {
     }
 
     const q = query(
-      collection(db, this.collectionName),
+      collection(db, QuestRepository.collectionName),
       where("userId", "==", userId)
     );
     const snap = await getDocs(q);
@@ -67,14 +67,14 @@ export const QuestRepository = {
     return quests;
   },
 
-  async saveQuest(userId, quest) {
+  async save(userId, quest) {
     if (!userId || !quest) {
       console.log("Invalid userId or quest");
       return;
     }
 
     const questWithUser = { ...QuestMapper.toDTO(quest), userId };
-    const ref = doc(db, this.collectionName, quest.id);
+    const ref = doc(db, QuestRepository.collectionName, quest.id);
     await setDoc(ref, questWithUser, { merge: true });
   },
 
@@ -84,7 +84,7 @@ export const QuestRepository = {
       return;
     }
 
-    const deletes = questsIds.map(id => deleteDoc(doc(db, this.collectionName, id)));
+    const deletes = questsIds.map(id => deleteDoc(doc(db, QuestRepository.collectionName, id)));
     await Promise.all(deletes);
   }
 };

@@ -13,10 +13,10 @@ import { QuestRepository } from "./repositories/QuestRepository";
 // - In markDone, a popup to update hoursSpent should be appear
 // - show hoursSpent instead of hoursEstimate in completed quests in GoalTabs too
 // - Make CRUD operations more extensive for both goals and quest:
-// * others attributes e.g. possible to add deadline, start, link goals to categories, etc.
+// * others attributes e.g. possible to add deadline, start, etc. (name, hoursRange, motherItemsFks already done)
 // - import quests from google calendar
 // - add priority to quests and use it in sorting (e.g. high, medium, low mapped to 3,2,1)
-// - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it
+// - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it (half implemented in useItemTabManager)
 // - Add color code for categories and show it in goals/quests
 
 function App() {
@@ -97,9 +97,9 @@ function App() {
             )}
             {activeTab === goalsTabName && (
               <GoalsTab
-                db={db}
                 user={user}
                 activeTab={activeTab}
+                thisTab={goalsTabName}
               />
             )}
             {activeTab === infoTabName && (

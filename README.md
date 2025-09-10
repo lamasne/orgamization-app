@@ -1,8 +1,8 @@
-# Quant Prep XP Tracker
+# OrGamization App
 
 ## Overview
 
-Quant Prep XP Tracker gamifies preparation for quantitative finance interviews. Users log in, track tasks, earn XP, and level up. The app can be wrapped as an Android TWA for mobile installation.
+OrGamization App gamifies organization of daily life. It started with preparation for quantitative finance interviews. Users log in, track tasks, earn XP, and level up. The app can be wrapped as an Android TWA for mobile installation.
 
 ## Features
 

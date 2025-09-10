@@ -6,7 +6,7 @@ export const GoalMapper = {
     id: doc.id,
     userId: doc.userId,
     name: doc.name || "",
-    categoriesFKs: doc.categoriesFKs || [],
+    categoriesFks: doc.categoriesFks || [],
     deadline: doc.deadline ? new Date(doc.deadline) : null,
     done: Boolean(doc.done || false),
     comment: doc.comment || "",
@@ -15,7 +15,7 @@ export const GoalMapper = {
     id: goal.id,
     userId: goal.userId,
     name: goal.name,
-    categoriesFKs: goal.categoriesFKs,
+    categoriesFks: goal.categoriesFks,
     deadline: goal.deadline instanceof Date ? goal.deadline.toISOString() : goal.deadline,
     done: goal.done,
     comment: goal.comment,
@@ -34,7 +34,7 @@ export const GoalRepository = {
 
     const goals = [];
     const q = query(
-      collection(db, this.collectionName),
+      collection(db, GoalRepository.collectionName),
       where("userId", "==", userId),
       where("id", "in", goalsIds)
     );
@@ -45,11 +45,10 @@ export const GoalRepository = {
     return goals;
   },
 
-  async findUserGoals(userId) {
+  async findByUserId(userId) {
     if (!userId) return [];
-
     const goals = [];
-    const q = query(collection(db, this.collectionName), where("userId", "==", userId));
+    const q = query(collection(db, GoalRepository.collectionName), where("userId", "==", userId));
 
     const snapshot = await getDocs(q);
     snapshot.forEach(doc => goals.push(GoalMapper.fromDTO({ id: doc.id, ...doc.data() })));
@@ -58,17 +57,20 @@ export const GoalRepository = {
   },
 
   async save(userId, goal) {
-    if (!userId || !goal) return;
+    if (!userId || !goal) {
+      console.log("Invalid userId or goal");
+      return;
+    }
 
     const goalWithUser = { ...GoalMapper.toDTO(goal), userId };
-    const ref = doc(db, this.collectionName, goal.id);
+    const ref = doc(db, GoalRepository.collectionName, goal.id);
     await setDoc(ref, goalWithUser, { merge: true });
   },
 
   async deleteMany(userId, goalsIds) {
     if (!userId || !goalsIds?.length) return;
 
-    const deletes = goalsIds.map(id => deleteDoc(doc(db, this.collectionName, id)));
+    const deletes = goalsIds.map(id => deleteDoc(doc(db, GoalRepository.collectionName, id)));
     await Promise.all(deletes);
   }
 };
