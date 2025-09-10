@@ -52,21 +52,29 @@ export default function InfoTab() {
 
       <h1 className="text-3xl font-bold mb-6">Gamifying Organization</h1>
 
+      <h2 className="text-2xl font-bold mb-4">Why this application?</h2>
+      <p className="mb-4">
+        I hypothesize that living beings' goal is to maximize their pleasure/pain ratio (cf. <span className="italic">The Method</span>)
+        The goal of this application is to improve my policy (i.e. strategy) towards this goal. 
+        To do so, I want to continuously determine the best plan of action possible and execute it. This application helps regarding both parts:
+      </p>
+      <ul>
+        <li>Determination of the best plan of action possible: e.g., through goal identification & decomposition</li>
+        <li>Execution of the plan: e.g., via gamification, visualization-based motivation</li>
+      </ul>
+
       {/* <h2 className="text-2xl font-bold mb-4">Instructions</h2> */}
 
       <h2 className="text-2xl font-bold mb-4">Activities and Goals</h2>
 
       <p className="mb-4">
-        After realizing that all my activities are planned based on optimizing my
-        pleasure/pain ratio (cf. <span className="italic">The Method</span>), the
-        pleasurable experiences one can have are triggered by their nervous system
-        interacting with objects. I chose to split these stimuli into 3 categories:
+        I make the hypothesis that pleasurable experiences are associated with nervous system (NS) activity.
+        I classify the nervous system's potential sources of stimulation into three categories:
       </p>
-
       <ul className="list-disc list-inside mb-4">
-        <li>Objects</li>
-        <li>Human beings</li>
-        <li>Myself</li>
+        <li>Other human beings</li>
+        <li>Own body</li>
+        <li>Rest of environment</li>
       </ul>
 
       <p className="mb-4">
