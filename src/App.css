@@ -1,14 +1,12 @@
-/* body {
-  text-align: left;
-} */
-
 /* Tabs with glowing hover */
 .tab-buttons {
   margin-top: 1rem;
   display: flex;
   justify-content: center;
   gap: 1rem;
+  flex-wrap: wrap; /* allow wrapping on small screens */
 }
+
 .tab-buttons button {
   padding: 0.8rem 1.8rem;
   border: none;
@@ -22,10 +20,12 @@
   text-shadow: 0 0 3px #000;
   transition: transform 0.15s, box-shadow 0.25s;
 }
+
 .tab-buttons button:hover {
   transform: scale(1.08);
   box-shadow: 0 6px 16px rgba(0,0,0,0.6), 0 0 15px #ffd633;
 }
+
 .tab-buttons button.active {
   background: linear-gradient(135deg, #d4a017, #b37410);
   border: 2px solid #fff176;
@@ -38,6 +38,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap; /* allow wrapping on small screens */
   padding: 1.2rem;
   border-radius: 12px;
   gap: 2rem;
@@ -51,16 +52,11 @@
   font-size: 1.05rem;
   text-shadow: 0 0 3px #000;
 }
+
 @keyframes cardGradient {
-  0% {
-      background-position: 0% 50%;
- }
-  50% {
-      background-position: 100% 50%;
- }
-  100% {
-      background-position: 0% 50%;
- }
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .item-frame:hover {
@@ -69,16 +65,16 @@
   transition: transform 0.2s, box-shadow 0.2s;
 }
 
-
 /* Buttons inside cards */
 .item-buttons {
   display: flex;
   gap: 0.7rem;
+  flex-wrap: wrap; /* wrap buttons on small screens */
 }
+
 /* Done/Edit buttons */
 .item-button.done {
   background: #3498db;
- /* blue */
   color: #fff;
   font-weight: 600;
   padding: 0.4rem 0.8rem;
@@ -88,9 +84,9 @@
   text-shadow: 0 0 2px #000;
   transition: transform 0.15s, box-shadow 0.25s;
 }
+
 .item-button.edit {
   background: #00cc66;
- /* emerald */
   color: #fff;
   font-weight: 600;
   padding: 0.4rem 0.8rem;
@@ -100,13 +96,13 @@
   text-shadow: 0 0 2px #000;
   transition: transform 0.15s, box-shadow 0.25s;
 }
-/* Hover glow like Delete button */
-.item-button.done:hover, .item-button.edit:hover {
+
+.item-button.done:hover, 
+.item-button.edit:hover {
   transform: scale(1.05);
   box-shadow: 0 3px 8px rgba(0,0,0,0.4), 0 0 10px currentColor;
- /* glow based on button color */
 }
-/* Other card buttons */
+
 .item-button {
   padding: 0.4rem 0.8rem;
   border: none;
@@ -117,10 +113,12 @@
   text-shadow: 0 0 2px #000;
   transition: transform 0.15s, box-shadow 0.25s, filter 0.25s;
 }
+
 .item-button:hover {
   transform: scale(1.05);
   box-shadow: 0 3px 8px rgba(0,0,0,0.4), 0 0 10px #ffd633;
 }
+
 .item-button.delete {
   background: linear-gradient(135deg, #ff4444, #aa0000);
   color: #ffedaa;
