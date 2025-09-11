@@ -1,4 +1,3 @@
-import './ItemTab.css';
 import { useState, useCallback } from "react";
 import useItemTabManager from "../hooks/useItemTabManager";
 
@@ -115,10 +114,10 @@ export default function ItemTab({
           {q.name} | {(q[motherItemVarName]?.length > 0 ? q[motherItemVarName].map(id => allMotherItemsMap[id] || id).join(", ") : "No mother items")} | {(Array.isArray(q.hoursRange) && q.hoursRange.length === 2 ? `${q.hoursRange[0]}-${q.hoursRange[1]}` : q.hoursRange)} hour(s)
         </span>
         <div className="item-buttons">
-          <button className="item-button" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>
+          <button className="item-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>
           <button className="item-button delete" onClick={() => manager.remove(q.id)}>Delete</button>
           {!isEditingItem && !isAddingItem && (
-            <button className="item-button" onClick={() => setItemBeingEdited(q)}>Edit</button>
+            <button className="item-button edit" onClick={() => setItemBeingEdited(q)}>Edit</button>
           )}
         </div>
       </div>
@@ -141,13 +140,14 @@ export default function ItemTab({
         />
       )}
       
-      {!isAddingItem && !isEditingItem && (
-        <button onClick={() => setIsAddingItem(true)}>+ Add Item</button>
-      )}
-      
-      <button style={{ marginTop: "1rem" }} onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}>
-        {isShowCompletedItems ? "Hide Completed Items" : "See Completed Items"}
-      </button>
+      <div style={{ textAlign: "center" }}>
+        {!isAddingItem && !isEditingItem && (
+          <button onClick={() => setIsAddingItem(true)}>+ Add Item</button>
+        )}
+        <button style={{ marginTop: "1rem" }} onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}>
+          {isShowCompletedItems ? "Hide Completed Items" : "See Completed Items"}
+        </button>
+      </div>
 
       {isShowCompletedItems && (
         <>

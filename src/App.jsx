@@ -46,7 +46,7 @@ function App() {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif" }}>
+    <div style={{ padding: "2rem", fontFamily: "sans-serif", textAlign: "left" }}>
       {!user ? <Auth /> : (
         <>
           <h1>OrGamization App</h1>

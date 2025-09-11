@@ -50,9 +50,9 @@ export default function InfoTab() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
 
-      <h1 className="text-3xl font-bold mb-6">Gamifying Organization</h1>
+      <h2 className="text-3xl font-bold mb-6">Gamifying Organization</h2>
 
-      <h2 className="text-2xl font-bold mb-4">Why this application?</h2>
+      <h3 className="text-2xl font-bold mb-4">Why this application?</h3>
       <p className="mb-4">
         I hypothesize that living beings' goal is to maximize their pleasure/pain ratio (cf. <span className="italic">The Method</span>)
         The goal of this application is to improve my policy (i.e. strategy) towards this goal. 
@@ -63,9 +63,9 @@ export default function InfoTab() {
         <li>Execution of the plan: e.g., via gamification, visualization-based motivation</li>
       </ul>
 
-      {/* <h2 className="text-2xl font-bold mb-4">Instructions</h2> */}
+      {/* <h3 className="text-2xl font-bold mb-4">Instructions</h3> */}
 
-      <h2 className="text-2xl font-bold mb-4">Activities and Goals</h2>
+      <h3 className="text-2xl font-bold mb-4">Activities and Goals</h3>
 
       <p className="mb-4">
         I make the hypothesis that pleasurable experiences are associated with nervous system (NS) activity.
@@ -102,9 +102,9 @@ export default function InfoTab() {
       </p>
 
       <div className="p-6 max-w-3xl mx-auto">
-        <h2 className="text-xl font-semibold mb-2">
+        <h3 className="text-xl font-semibold mb-2">
           Fundamental Activity Categories
-        </h2>
+        </h3>
         <ul>
           {categories.map(cat => (
             <li key={cat.id}>{cat.name} {cat.desc && `- ${cat.desc}`}</li>
