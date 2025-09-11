@@ -1,32 +1,23 @@
 :root {
+  max-width: 1280px;
+  width: 100%;
+  padding: 1rem;
+  box-sizing: border-box;
+  margin: 0 auto;
   font-family: 'Trebuchet MS', 'Segoe UI', Helvetica, Arial, sans-serif;
-  line-height: 1.6;
-  font-weight: 400;
-  font-size: 18px;
   color: #fdfdfd;
-  background-color: #1a0f0f;
-  /* background: transparent; */
   --accent1: #ffcc33;
   --accent2: #ff6633;
   --accent3: #ffd633;
   --accent4: #ff9933;
 }
 
+
 body {
   margin: 0;
-  display: flex;
-  justify-content: center; /* center horizontally */
   min-height: 100vh;
   background: radial-gradient(circle at top, #1a0f0f 0%, #000 100%);
   overflow-x: hidden; /* hide horizontal scroll */
-}
-
-/* Ensure main container is responsive */
-#root {
-  max-width: 1280px;
-  width: 100%;
-  padding: 2rem;
-  box-sizing: border-box; /* include padding in width */
 }
 
 /* Headings */
