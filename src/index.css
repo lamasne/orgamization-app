@@ -21,28 +21,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Floating stars effect */
-body::before {
-  content: '';
-  position: fixed;
-  width: 200%;
-  height: 200%;
-  top: -50%;
-  left: -50%;
-  background: url('https://i.ibb.co/XY1hv8P/space-particles.png') repeat;
-  opacity: 0.15;
-  z-index: -1;
-  animation: starMove 120s linear infinite;
-}
-@keyframes starMove {
-  from {
-      background-position: 0 0;
- }
-  to {
-      background-position: -2000px 2000px;
- }
-}
-
 /* Headings */
 h1 {
   font-size: 3rem;
