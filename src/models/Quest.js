@@ -1,3 +1,6 @@
+
+import { SessionRepository } from "../repositories/SessionRepository";
+
 // Domain class
 export class Quest {
   constructor({ 
@@ -26,16 +29,18 @@ export class Quest {
     this.progressMetricsValue = progressMetricsValue;
   }
 
-  get currentProgress() {
-    const user_sessions = SessionRepository.getAllSessions(this.userId)
-    const relevant_sessions = user_sessions.filter(session => session.motherQuestsFKs.includes(this.id) && session.isDone)
+  async getCurrentProgress() {
+    const sessions = await SessionRepository.findByField("userId", this.userId);
+    const relevant_sessions = sessions.filter(
+      s => (s.motherQuestsFKs || []).includes(this.id) && s.isDone
+    );
     return relevant_sessions.reduce((total, session) => {
       return total + session.associatedProgress;
     }, 0);
   }
 
   get isDone() {
-    return this.progressMetricsValue >= this.currentProgress;
+    return this.progressMetricsValue >= this.getCurrentProgress();
   }
 
 }
