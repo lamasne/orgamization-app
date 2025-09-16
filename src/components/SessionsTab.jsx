@@ -1,14 +1,18 @@
+import { SessionRepository } from "../repositories/SessionRepository";
 import { QuestRepository } from "../repositories/QuestRepository";
-import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
+import { Session } from "../models/Session";
 import { Quest } from "../models/Quest";
-import { QuestCategory } from "../models/QuestCategory";
 import { useState, useCallback } from "react";
 import useItemTabManager from "../hooks/useItemTabManager";
 
-
-export default function QuestsTab({
+export default function SessionsTab({
   user
 }) {
+
+  const ItemModel = Session;
+  const ItemRepository = SessionRepository;
+  const MotherItemModel = Quest;
+  const MotherItemRepository = QuestRepository;
 
   const motherItemVarName = "motherQuestsFks";
 
@@ -22,14 +26,14 @@ export default function QuestsTab({
   const [allMotherItemsMap, setAllMotherItemsMap] = useState({});
 
   const manager = useItemTabManager({
-    user, ItemRepository: QuestRepository, MotherItemModel: QuestCategory, MotherItemRepository: QuestCategoryRepository,
+    user, ItemRepository, MotherItemModel, MotherItemRepository,
     setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap
   });
 
   const ItemForm = () => {
     const [name, setName] = useState(itemBeingEdited?.name || "");
     const [motherItemsFks, setMotherItemsFks] = useState(itemBeingEdited?.[motherItemVarName] || []);
-    const [hoursRange, setHoursRange] = useState(itemBeingEdited?.hoursRange || []);
+    const [associatedProgress, setAssociatedProgress] = useState(itemBeingEdited?.associatedProgress || 0);
 
     const finishAddEdit = () => {
       setIsAddingItem(false);
@@ -37,15 +41,16 @@ export default function QuestsTab({
     };
 
     const handleSubmit = async (e) => {
+      console.log("user", user.uid, "Will update/save item", itemBeingEdited?.name, "with", name, motherItemsFks, associatedProgress);
       e.preventDefault();
-      const item = new Quest({ 
+      const item = new ItemModel({ 
         ...itemBeingEdited,
         userId: user.uid,
         name: name,
         [motherItemVarName]: motherItemsFks,
-        hoursRange: hoursRange,
+        associatedProgress: associatedProgress,
       })
-      QuestRepository.save(user.uid, item);
+      ItemRepository.save(user.uid, item);
       finishAddEdit();
     };
 
@@ -70,20 +75,16 @@ export default function QuestsTab({
             <option key={id} value={id}>{motherItem.name}</option>
           ))}
         </select>
-        <select
-          value={hoursRange.join(",")}
-          onChange={e => setHoursRange(e.target.value.split(",").map(Number))}
-          required
-          className="form-select"
-        >
-          <option value="" disabled>Select hours</option>
-          <option value="1,2">1-2 hours</option>
-          <option value="2,4">2-4 hours</option>
-          <option value="4,8">4-8 hours</option>
-          <option value="8,16">8-16 hours</option>
-          <option value="16,32">16-32 hours</option>
-          <option value="32,64">32-64 hours</option>
-        </select>
+        {allMotherItemsMap[motherItemsFks[0]]?.progressMetricsName !== "hoursSpent"  && (
+          <input
+            type="number"
+            value={associatedProgress}
+            placeholder={`Associated progress (max: ${allMotherItemsMap[motherItemsFks[0]]?.progressMetricsValue})`}
+            onChange={e => setAssociatedProgress(Number(e.target.value))}
+            required
+            className="form-input"
+          />
+        )}
         <button type="submit" className="button primary"> {itemBeingEdited ? "Save" : "Add"} </button>
         <button type="button" className="button" onClick={finishAddEdit}>Cancel</button>
       </form>
@@ -94,16 +95,11 @@ export default function QuestsTab({
     <li key={q.id} className="card-li">
       <div className="card">
         <span className="card-text">
-          {q.name}
+          {q.name} 
           <span className="card-splitter">✦</span>
-          {q[motherItemVarName]?.length > 0
-            ? q[motherItemVarName]
-                .map(id => allMotherItemsMap[id]?.name ?? id)
-                .join(", ")
-            : "No mother items"
-          }
+          {manager.formatDateRange(q.start, q.end)}
           <span className="card-splitter">✦</span>
-          {(Array.isArray(q.hoursRange) && q.hoursRange.length === 2 ? `${q.hoursRange[0]}-${q.hoursRange[1]}` : q.hoursRange)} hour(s)
+          {" ("}{(q[motherItemVarName]?.length > 0 ? q[motherItemVarName].map(id => allMotherItemsMap[id].name || id).join(", ") : "No mother quests")}{")"}
         </span>
         <div className="card-buttons">
           <button className="card-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>

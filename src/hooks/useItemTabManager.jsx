@@ -1,89 +1,89 @@
 import { useEffect } from "react";
+import { format, isSameDay, isSameMonth, isSameYear } from "date-fns";
 
 export default function useItemTabManager({ 
-  user, pendingItems, setPendingItems, completedItems, setCompletedItems, activeTab, thisTab, 
-  ItemModel, ItemRepository, MotherItemName, MotherItemRepository, 
-  motherItemVarName, allMotherItemsMap, setAllMotherItemsMap, 
+  user, ItemRepository, MotherItemModel, MotherItemRepository,
+  setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap, 
 }) {
-  const loadAllItems = async () => {
-    if (!user) return;
-    const items = await ItemRepository.findByUserId(user.uid);
-    setPendingItems(items.filter(i => !i.done));
-    setCompletedItems(items.filter(i => i.done));
-  };
   
-  const loadAllMotherItems = async () => {
+  useEffect(() => {
     if (!user) return;
-    const motherItems = await MotherItemRepository.findByUserId(user.uid);
-    const map = {};
-    motherItems.forEach(mi => { map[mi.id] = mi.name; });
-    setAllMotherItemsMap(map);
-  };
+    const unsubscribe = ItemRepository.onFieldChange("userId", user.uid, (items) => {
+      setPendingItems(items.filter(i => !i.isDone));
+      setCompletedItems(items.filter(i => i.isDone));
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
-    if (!user || activeTab !== thisTab) return;
-    loadAllItems();
-    loadAllMotherItems();
-  }, [activeTab, user]);
+    if (!user) return;
+    let unsubscribe = () => {};
   
-  // Create a default item for each mother item not covered by any pending item
-  const generateDefaultItems = (missingMotherItems) => {
-    missingMotherItems.forEach(([id, name]) => {
-      const item = new ItemModel({
-        userId: user.uid,
-        name: `Auto-generated: define ${ItemModel.name} for ${MotherItemName}: ${name}`,
-        hoursRange: [1, 2],
-        [motherItemVarName]: [id],
-        comment: `Default ${ItemModel.name} created automatically`,
-      });
-      saveAndReloadItem(user.uid, item);
-    });
-  }
+    const updateMotherItemsMap = (items) => {
+      const updatedMap = { ...allMotherItemsMap };
+      items.forEach(item => { updatedMap[item.id] = item; });
+      setAllMotherItemsMap(updatedMap);
+    };
 
-  // // If a mother item is not present in any of the pending items.[motherItemVarName], create a default item for it
-  // useEffect(() => {
-  //   if (!user || activeTab !== thisTab) return;
-  //   const coveredMotherItemsIds = new Set(
-  //     pendingItems.flatMap(i => i[motherItemVarName])
-  //   );
-  //   const missingMotherItems = Object.entries(allMotherItemsMap)
-  //     .filter(([id, item]) => !coveredMotherItemsIds.has(id) && !item.done);
-  //   generateDefaultItems(missingMotherItems);
-  // }, [activeTab, user, pendingItems, allMotherItemsMap]);
+    if (MotherItemModel.name === "QuestCategory") {
+      MotherItemRepository.findAll().then(updateMotherItemsMap); // case of MotherItemRepository = QuestCategoryRepository
+    } else {
+      unsubscribe = MotherItemRepository.onFieldChange("userId", user.uid, (items) => {
+        updateMotherItemsMap(items);
+      });
+    }
   
-  
-  const saveAndReloadItem = async (uid, item) => {
-    await ItemRepository.save(uid, item);
-    loadAllItems();
-  };
+    return () => unsubscribe();
+  }, [user]);
+
 
   const changeStatus = async (item) => {
-    const updated = { ...item, done: !item.done };
+    console.log("Request to change status of item", item.id, "by user", user.uid);
+    const updated = { ...item, status: item.isDone ? "pending" : "completed" };
     await ItemRepository.save(user.uid, updated);
-
-    const newPending = pendingItems.filter(i => i.id !== item.id);
-    const newCompleted = completedItems.filter(i => i.id !== item.id);
-
-    if (updated.done) {
-      setPendingItems(newPending);
-      setCompletedItems([...newCompleted, updated]);
-    } else {
-      setCompletedItems(newCompleted);
-      setPendingItems([...newPending, updated]);
-    }
   };
 
   const remove = async (id) => {
     if (!window.confirm("Are you sure? This action is irreversible.")) return;
     await ItemRepository.deleteMany(user.uid, [id]);
-    setPendingItems(pendingItems.filter(i => i.id !== id));
-    setCompletedItems(completedItems.filter(i => i.id !== id));
   };
 
+
+  function formatDateRange(start, end) {
+    if (!start || !end) return "";
+  
+    const s = new Date(start);
+    const e = new Date(end);
+    const now = new Date();
+  
+    const showYearStart = s.getFullYear() !== now.getFullYear();
+    const showYearEnd = e.getFullYear() !== now.getFullYear();
+  
+    if (isSameDay(s, e)) {
+      // same day → show full date once, then only time for end
+      const fmt = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+      return `${format(s, fmt)} - ${format(e, "HH:mm")}`;
+    }
+  
+    if (isSameMonth(s, e)) {
+      // same month → repeat day + time, year only if different from current
+      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+      return `${format(s, fmtStart)} - ${format(e, "d HH:mm")}`;
+    }
+  
+    if (isSameYear(s, e)) {
+      // same year, different month
+      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+      return `${format(s, fmtStart)} - ${format(e, "d MMM HH:mm")}`;
+    }
+  
+    // different years
+    return `${format(s, "d MMM yyyy HH:mm")} - ${format(e, "d MMM yyyy HH:mm")}`;
+  }
+  
   return {
-    loadAllItems,
     changeStatus,
     remove,
-    saveAndReloadItem,
+    formatDateRange,
   };
 }
