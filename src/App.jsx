@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import './App.css';
-import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "./config/firebase-config";
-import { Auth } from "./components/Auth";
-import { signOut } from "firebase/auth";
+import { useAuth } from "./hooks/Auth";
+
+import SessionsTab from "./components/SessionsTab";
 import QuestsTab from "./components/QuestsTab";
-import GoalsTab from "./components/GoalsTab";
 import InfoTab from "./components/InfoTab";
-import { QuestRepository } from "./repositories/QuestRepository";
+
+import { SessionRepository } from "./repositories/SessionRepository";
 
 // TODO: 
 // - In markDone, a popup to update hoursSpent should be appear
@@ -21,85 +19,77 @@ import { QuestRepository } from "./repositories/QuestRepository";
 
 function App() {
 
+  const sessionsTabName = "activity"
   const questsTabName = "quests"
-  const goalsTabName = "goals"
   const infoTabName = "info"
 
-  const [user, loading] = useAuthState(auth);
-  const [pendingQuests, setPendingQuests] = useState([]);
-  const [completedQuests, setCompletedQuests] = useState([]);
-  const [activeTab, setActiveTab] = useState(questsTabName);
+  const { user, loading, signInWithGoogle, logout } = useAuth();
 
-  const totalXP = completedQuests.reduce((a, q) => a + q.hoursSpent, 0);
-  const level = Math.floor(totalXP / 50) + 1;
+  const [completedSessions, setCompletedSessions] = useState([]);
+  const [activeTab, setActiveTab] = useState(sessionsTabName);
 
-  const loadQuests = async () => {
-    if (!user) return;
-    const allQuests = await QuestRepository.findByUserId(user.uid);
-    setPendingQuests(allQuests.filter(q => !q.done));
-    setCompletedQuests(allQuests.filter(q => q.done));
-  };
+  const totalXP = completedSessions.reduce((total, session) => total + session.associatedProgress, 0);
+  const level = Math.floor(totalXP / 50);
 
+  // Subscribes to real-time updates of sessions and updates the component state with the latest sessions
   useEffect(() => {
-    loadQuests();
-  }, [db, user]);
+    if (!user) return;
+    const unsubscribe = SessionRepository.onFieldChange("userId", user.uid, (sessions) => {
+      setCompletedSessions(sessions.filter(s => s.done));
+    });
+    return () => unsubscribe(); // called when component unmounts and before effect re-runs
+  }, [user]);
+  
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div style={{ padding: "2rem", fontFamily: "sans-serif", textAlign: "left" }}>
-      {!user ? <Auth /> : (
-        <>
-          <h1>OrGamization App</h1>
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <p style={{ margin: 0 }}>Welcome {user.displayName || user.email}</p>
-            <button onClick={() => signOut(auth)}>Logout</button>
+    <div style={{ padding: "2rem"}}>
+      {!user ?
+        <div className="center-screen">
+          <button onClick={signInWithGoogle}>Sign In With Google</button>
+        </div>
+        : (
+          <>
+          <div style={{ display: "flex", 
+            justifyContent: "flex-end", 
+            alignItems: "center", 
+            gap: "1rem"
+          }}>
+            <p style={{ margin: 0 }}>Welcome {user.firstName || user.email}</p>
+            <button onClick={logout}>Logout</button>
           </div>
 
-          <p>Level: {level} | XP: {totalXP}</p>
-          <progress value={totalXP % 50} max="50" style={{ width: "100%" }} />
+          <h1>OrGamization App</h1>
 
-
+          <div style={{ textAlign: "center", margin: "3rem 0 4rem"}}>
+            <p>Level: {level} | XP: {totalXP}</p>
+            <progress
+              value={totalXP % 50}
+              max="50"
+              style={{ display: "block", margin: "0 auto", width: "380px"}}
+            />
+          </div>
           <div className="tab-buttons">
-            <button
-              className={activeTab === questsTabName ? "active" : ""}
-              onClick={() => {
-                setActiveTab(questsTabName);
-                loadQuests(); // refresh quests when switching to this tab
-              }}
-            >
-              Quests
-            </button>
-            <button
-              className={activeTab === goalsTabName ? "active" : ""}
-              onClick={() => setActiveTab(goalsTabName)}
-            >
-              Goals
-            </button>
-            <button
-              className={activeTab === infoTabName ? "active" : ""}
-              onClick={() => setActiveTab(infoTabName)}
-            >
-              Info
-            </button>
+            {[sessionsTabName, questsTabName, infoTabName].map((tabName) => (
+              <button
+                key={tabName}
+                className={activeTab === tabName ? "active" : ""}
+                onClick={() => setActiveTab(tabName)}
+              >
+                {tabName.charAt(0).toUpperCase() + tabName.slice(1)}
+              </button>
+            ))}
           </div>
 
           <div style={{ marginTop: "1rem" }}>
+            {activeTab === sessionsTabName && (
+              <SessionsTab
+                user={user}
+              />
+            )}
             {activeTab === questsTabName && (
               <QuestsTab
                 user={user}
-                pendingQuests={pendingQuests}
-                setPendingQuests={setPendingQuests}
-                completedQuests={completedQuests}
-                setCompletedQuests={setCompletedQuests}
-                activeTab={activeTab}
-                thisTab={questsTabName}
-              />
-            )}
-            {activeTab === goalsTabName && (
-              <GoalsTab
-                user={user}
-                activeTab={activeTab}
-                thisTab={goalsTabName}
               />
             )}
             {activeTab === infoTabName && (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { collection, getDocs, setDoc, doc } from "firebase/firestore";
 import { db } from "../config/firebase-config";
-
+import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
 
 const fundamentalCategoriesData = [
   { id: "1", name: "Source of income" },
@@ -28,16 +28,15 @@ export default function InfoTab() {
   useEffect(() => {
     const fetchOrPopulateCategories = async () => {
       try {
-        const snapshot = await getDocs(collection(db, "fundamentalCategories"));
-        if (snapshot.empty) {
+        const categories = await QuestCategoryRepository.findAll();
+        if (categories.length === 0) {
           console.log("Collection empty, creating default categories...");
           for (const cat of fundamentalCategoriesData) {
-            await setDoc(doc(db, "fundamentalCategories", cat.id), cat);
+            await QuestCategoryRepository.save(cat);
           }
           setCategories(fundamentalCategoriesData);
         } else {
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setCategories(data);
+          setCategories(categories);
         }
       } catch (err) {
         console.error("Error fetching or creating categories:", err);

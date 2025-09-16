@@ -1,4 +1,4 @@
-export class Category {
+export class QuestCategory {
    constructor({
      id = crypto.randomUUID(),
      name,

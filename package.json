@@ -11,7 +11,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "firebase": "^12.2.1",
+    "firebase-admin": "^13.5.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-firebase-hooks": "^5.1.1"
