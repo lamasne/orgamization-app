@@ -9,7 +9,6 @@ export class Quest {
     isSubQuest = false,
     motherQuestsFks,
     name,
-    hoursRange = [1, 2],
     deadline,
     progressMetricsName = "hoursSpent",
     progressMetricsValue = null,
@@ -21,8 +20,8 @@ export class Quest {
     this.isSubQuest = isSubQuest;
     this.motherQuestsFks = motherQuestsFks;
     this.name = name;
-    this.hoursRange = hoursRange;
-    this.deadline = deadline ? new Date(deadline) : new Date(Date.now() + 3600000 * ( this.hoursRange[1] + 1));
+    // set deadline to midnight today by default
+    this.deadline = deadline ? new Date(deadline) : new Date(Date.now() + 24 * 60 * 60 * 1000);
     this.difficulty = difficulty; // scale of 1-10
     this.comment = comment;
     this.progressMetricsName = progressMetricsName;

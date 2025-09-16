@@ -10,7 +10,6 @@ export const QuestMapper = {
     isSubQuest: Boolean(doc.isSubQuest),
     motherQuestsFks: doc.motherQuestsFks || [],
     name: doc.name || "",
-    hoursRange: doc.hoursRange ? doc.hoursRange.map(Number) : [],
     // Date (formatted as 'YYYY-MM-DD HH:mm' in toDTO)
     deadline: doc.deadline ? new Date(doc.deadline) : null,
     difficulty: Number(doc.difficulty) || 0,
@@ -25,7 +24,6 @@ export const QuestMapper = {
       isSubQuest: quest.isSubQuest,
       motherQuestsFks: quest.motherQuestsFks,
       name: quest.name,
-      hoursRange: quest.hoursRange,
       deadline: quest.deadline instanceof Date && !isNaN(quest.deadline)
       ? quest.deadline.toISOString().slice(0,16).replace("T", " ")
       : null,

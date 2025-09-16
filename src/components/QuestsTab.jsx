@@ -29,7 +29,6 @@ export default function QuestsTab({
   const ItemForm = () => {
     const [name, setName] = useState(itemBeingEdited?.name || "");
     const [motherItemsFks, setMotherItemsFks] = useState(itemBeingEdited?.[motherItemVarName] || []);
-    const [hoursRange, setHoursRange] = useState(itemBeingEdited?.hoursRange || []);
 
     const finishAddEdit = () => {
       setIsAddingItem(false);
@@ -43,7 +42,6 @@ export default function QuestsTab({
         userId: user.uid,
         name: name,
         [motherItemVarName]: motherItemsFks,
-        hoursRange: hoursRange,
       })
       QuestRepository.save(user.uid, item);
       finishAddEdit();
@@ -70,20 +68,6 @@ export default function QuestsTab({
             <option key={id} value={id}>{motherItem.name}</option>
           ))}
         </select>
-        <select
-          value={hoursRange.join(",")}
-          onChange={e => setHoursRange(e.target.value.split(",").map(Number))}
-          required
-          className="form-select"
-        >
-          <option value="" disabled>Select hours</option>
-          <option value="1,2">1-2 hours</option>
-          <option value="2,4">2-4 hours</option>
-          <option value="4,8">4-8 hours</option>
-          <option value="8,16">8-16 hours</option>
-          <option value="16,32">16-32 hours</option>
-          <option value="32,64">32-64 hours</option>
-        </select>
         <button type="submit" className="button primary"> {itemBeingEdited ? "Save" : "Add"} </button>
         <button type="button" className="button" onClick={finishAddEdit}>Cancel</button>
       </form>
@@ -102,8 +86,6 @@ export default function QuestsTab({
                 .join(", ")
             : "No mother items"
           }
-          <span className="card-splitter">✦</span>
-          {(Array.isArray(q.hoursRange) && q.hoursRange.length === 2 ? `${q.hoursRange[0]}-${q.hoursRange[1]}` : q.hoursRange)} hour(s)
         </span>
         <div className="card-buttons">
           <button className="card-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>

@@ -10,13 +10,14 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   const saveUser = async (firebaseUser) => {
+    const uid = firebaseUser.uid;
     const userModel = new User({
-      uid: firebaseUser.uid,
+      uid: uid,
       firstName: firebaseUser.displayName?.split(" ")[0] || "",
       lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
       email: firebaseUser.email,
     });
-    await UserRepository.save(userModel).catch(console.error);
+    await UserRepository.save(uid, userModel).catch(console.error);
     setUser(userModel);
   };
 
