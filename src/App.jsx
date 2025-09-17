@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "./hooks/Auth";
+import { useAuth } from "./hooks/useAuth";
 
 import SessionsTab from "./components/SessionsTab";
 import QuestsTab from "./components/QuestsTab";
@@ -8,14 +8,12 @@ import InfoTab from "./components/InfoTab";
 import { SessionRepository } from "./repositories/SessionRepository";
 
 // TODO: 
-// - In markDone, a popup to update hoursSpent should be appear
-// - show hoursSpent instead of hoursEstimate in completed quests in GoalTabs too
-// - Make CRUD operations more extensive for both goals and quest:
-// * others attributes e.g. possible to add deadline, start, etc. (name, hoursRange, motherItemsFks already done)
-// - import quests from google calendar
+// - replace useState(initialValue) with useEffect to populate when editing starts
+// - In markDone, a popup to update (actual) hoursSpent should appear
+// - sync sessions with google calendar (e.g. when a session is created, it should be added to google calendar, and conversely)
 // - add priority to quests and use it in sorting (e.g. high, medium, low mapped to 3,2,1)
 // - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it (half implemented in useItemTabManager)
-// - Add color code for categories and show it in goals/quests
+// - Add color code for categories and show it in quests/sessions
 
 function App() {
 
@@ -94,7 +92,9 @@ function App() {
             )}
             {activeTab === infoTabName && (
               <div style={{ textAlign: "left" }}>
-                <InfoTab />
+                <InfoTab
+                  user={user}
+                />
               </div>
             )}
           </div>

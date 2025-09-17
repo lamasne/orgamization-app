@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { auth, googleProvider } from "../config/firebase-config";
 import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
-import { UserRepository } from "../repositories/UserRepository";
+import { userRepository } from "../repositories/UserRepository";
 import { User } from "../models/User";
 
 export const useAuth = () => {
@@ -17,7 +17,7 @@ export const useAuth = () => {
       lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
       email: firebaseUser.email,
     });
-    await UserRepository.save(uid, userModel).catch(console.error);
+    await userRepository.save(uid, userModel).catch(console.error);
     setUser(userModel);
   };
 

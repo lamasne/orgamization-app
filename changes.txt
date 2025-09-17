@@ -1,0 +1,1334 @@
+diff --git a/src/App.jsx b/src/App.jsx
+index 754677c..70608ce 100644
+--- a/src/App.jsx
++++ b/src/App.jsx
+@@ -1,5 +1,5 @@
+ import { useEffect, useState } from "react";
+-import { useAuth } from "./hooks/Auth";
++import { useAuth } from "./hooks/useAuth";
+ 
+ import SessionsTab from "./components/SessionsTab";
+ import QuestsTab from "./components/QuestsTab";
+@@ -8,14 +8,12 @@ import InfoTab from "./components/InfoTab";
+ import { SessionRepository } from "./repositories/SessionRepository";
+ 
+ // TODO: 
+-// - In markDone, a popup to update hoursSpent should be appear
+-// - show hoursSpent instead of hoursEstimate in completed quests in GoalTabs too
+-// - Make CRUD operations more extensive for both goals and quest:
+-// * others attributes e.g. possible to add deadline, start, etc. (name, hoursRange, motherItemsFks already done)
+-// - import quests from google calendar
++// - replace useState(initialValue) with useEffect to populate when editing starts
++// - In markDone, a popup to update (actual) hoursSpent should appear
++// - sync sessions with google calendar (e.g. when a session is created, it should be added to google calendar, and conversely)
+ // - add priority to quests and use it in sorting (e.g. high, medium, low mapped to 3,2,1)
+ // - When no goals/quests are being created for a category/goal respectively, show a reminder to take care of it and create a quest for it (half implemented in useItemTabManager)
+-// - Add color code for categories and show it in goals/quests
++// - Add color code for categories and show it in quests/sessions
+ 
+ function App() {
+ 
+@@ -94,7 +92,9 @@ function App() {
+             )}
+             {activeTab === infoTabName && (
+               <div style={{ textAlign: "left" }}>
+-                <InfoTab />
++                <InfoTab
++                  user={user}
++                />
+               </div>
+             )}
+           </div>
+diff --git a/src/components/InfoTab.jsx b/src/components/InfoTab.jsx
+index 683e313..32162e6 100644
+--- a/src/components/InfoTab.jsx
++++ b/src/components/InfoTab.jsx
+@@ -1,7 +1,6 @@
+ import { useEffect, useState } from "react";
+-import { collection, getDocs, setDoc, doc } from "firebase/firestore";
+-import { db } from "../config/firebase-config";
+-import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
++import { questCategoryRepository } from "../repositories/QuestCategoryRepository";
++import { QuestCategory } from "../models/QuestCategory";
+ 
+ const fundamentalCategoriesData = [
+   { id: "1", name: "Source of income" },
+@@ -22,17 +21,23 @@ const fundamentalCategoriesData = [
+ //   }
+ // };
+ 
+-export default function InfoTab() {
++export default function InfoTab({user}) {
+   const [categories, setCategories] = useState([]);
+ 
+   useEffect(() => {
+     const fetchOrPopulateCategories = async () => {
+       try {
+-        const categories = await QuestCategoryRepository.findAll();
++        const categories = await questCategoryRepository.findAll();
+         if (categories.length === 0) {
+-          console.log("Collection empty, creating default categories...");
++          const ok = window.confirm(
++            "Collection is empty. Do you want to create the default categories?"
++          );
++          if (!ok) return; // user cancelled
++        
++          console.log("Creating default categories...");
+           for (const cat of fundamentalCategoriesData) {
+-            await QuestCategoryRepository.save(cat);
++            const questCategory = new QuestCategory(cat);
++            await questCategoryRepository.save(user.uid, questCategory);
+           }
+           setCategories(fundamentalCategoriesData);
+         } else {
+@@ -44,7 +49,7 @@ export default function InfoTab() {
+     };
+ 
+     fetchOrPopulateCategories();
+-  }, []);
++  }, [user]);
+ 
+   return (
+     <div className="p-6 max-w-3xl mx-auto">
+diff --git a/src/components/QuestsTab.jsx b/src/components/QuestsTab.jsx
+index 2462b80..c547e54 100644
+--- a/src/components/QuestsTab.jsx
++++ b/src/components/QuestsTab.jsx
+@@ -1,7 +1,7 @@
+ import { useState, useCallback } from "react";
+ import React from "react";
+ import { Quest } from "../models/Quest";
+-import useQuestTabManager from "../hooks/useQuestTabManager";
++import useQuestTabManager from "../hooks/useQuestTabManager.jsx";
+ 
+ export default function QuestsTab({ user }) {
+   const [pendingQuests, setPendingQuests] = useState([]);
+@@ -11,7 +11,6 @@ export default function QuestsTab({ user }) {
+   const isQuestInForm = questInForm !== null;
+ 
+   const [expandedQuestId, setExpandedQuestId] = useState(null);
+-
+   const [isShowCompletedItems, setIsShowCompletedItems] = useState(false);
+   const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
+   const [allMotherCategoriesMap, setAllMotherCategoriesMap] = useState({});
+@@ -26,52 +25,27 @@ export default function QuestsTab({ user }) {
+     setAllMotherCategoriesMap,
+   });
+ 
+-  // template for new quest
+-  const emptyQuest = new Quest({
+-    id: null,
+-    name: "",
+-    motherQuestsFks: [],
+-    isSubQuest: false,
+-    progressMetricsName: "hoursSpent",
+-    progressMetricsValue: "",
+-    deadline: "",
+-  });
+-
+   const QuestForm = () => {
+-    const [name, setName] = useState(questInForm?.name || null);
++    const [name, setName] = useState(questInForm?.name || "");
+     const [motherQuestsFks, setMotherQuestsFks] = useState(questInForm?.motherQuestsFks || []);
+     const [isSubQuest, setIsSubQuest] = useState(questInForm?.isSubQuest || false);
+-    let motherQuest = null;
++    let mainMotherQuest = null;
+     if (motherQuestsFks?.length) {
+       if (isSubQuest) {
+-        motherQuest = allMotherQuestsMap[motherQuestsFks[0]] || null;
++        mainMotherQuest = allMotherQuestsMap[motherQuestsFks[0]] || null;
+       }
+       else {
+-        motherQuest = allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
++        mainMotherQuest = allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
+       }
+     }
+-    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName
+-      || (isSubQuest ? motherQuest?.progressMetricsName : null)
+-    );
+-    const [progressMetricsValue, setProgressMetricsValue] = useState(
+-      questInForm?.progressMetricsValue 
+-      || (isSubQuest ? motherQuest?.progressMetricsValue : null)
+-    );
++    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName || "");
++    const [progressMetricsValue, setProgressMetricsValue] = useState(questInForm?.progressMetricsValue || 0);
+     const [deadline, setDeadline] = useState(
+       questInForm?.deadline
+         ? manager.toDateTimeLocalString(new Date(questInForm.deadline))
+         : ""
+     );
+ 
+-    // console.log("Quest in form current data:", {
+-    //   name,
+-    //   motherQuestsFks,
+-    //   isSubQuest,
+-    //   progressMetricsName,
+-    //   progressMetricsValue,
+-    //   deadline,
+-    // });
+-
+     const finishAddEdit = () => {
+       setQuestInForm(null);
+     };
+@@ -117,9 +91,9 @@ export default function QuestsTab({ user }) {
+           onChange={(e) => setMotherQuestsFks(Array.from(e.target.selectedOptions, (o) => o.value))}
+         >
+           {isSubQuest ? (
+-            Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
++            Object.entries(allMotherQuestsMap).map(([id, mainMotherQuest]) => (
+               <option key={id} value={id}>
+-                {motherQuest.name}
++                {mainMotherQuest.name}
+               </option>
+             ))
+           ) : (
+@@ -131,22 +105,24 @@ export default function QuestsTab({ user }) {
+           )}
+         </select>
+ 
+-        {(!isSubQuest || !allMotherQuestsMap[motherQuestsFks[0]]?.progressMetricsName) && 
+-          <input
+-            type="text"
+-            value={progressMetricsName}
+-            onChange={(e) => setProgressMetricsName(e.target.value)}
+-            placeholder="hoursSpent"
+-          />
+-        }
++        <input
++          type="text"
++          value={progressMetricsName}
++          onChange={(e) => setProgressMetricsName(e.target.value)}
++          placeholder={
++            isSubQuest 
++            ? (mainMotherQuest?.progressMetricsName || "hoursSpent") 
++            : "hoursSpent"
++          }
++        />
+ 
+         <input
+           type="number"
+           value={progressMetricsValue}
+           onChange={(e) => setProgressMetricsValue(e.target.value)}
+           placeholder={
+-            isSubQuest && motherQuest
+-            ? `Choose a quantity of ${motherQuest.progressMetricsName} up to ${motherQuest.progressMetricsValue}`
++            isSubQuest && mainMotherQuest?.progressMetricsName == progressMetricsName
++            ? `Choose a quantity of ${progressMetricsName} up to ${mainMotherQuest.progressMetricsValue}`
+             : `Choose a quantity of ${progressMetricsName}`
+           }
+         />
+@@ -179,12 +155,8 @@ export default function QuestsTab({ user }) {
+           style={{ cursor: "pointer" }}
+         >
+           <div>
+-            <p>
+-              <span className="card-splitter">✦</span>
+-              {q.name}
+-              <span className="card-splitter">✦</span>
+-            </p>
+-            <p>
++            <div className="card-title expanded-card-prop">{q.name}</div>
++            <div className="expanded-card-prop">
+               Mother Quest:{" "}
+               {q.motherQuestsFks?.length > 0
+                 ? q.motherQuestsFks
+@@ -195,22 +167,20 @@ export default function QuestsTab({ user }) {
+                     )
+                     .join(", ")
+                 : "No mother items"}
+-            </p>
+-            <p>
+-              Progress:{" "}
+-              <em>
+-                {/* useEffect could preload this, but you can also fetch inline */}
+-                {/* Wrap in Suspense or prefetch in manager for better UX */}
+-                {q.progressMetricsName && q.progressMetricsValue && (
+-                  <>
+-                    <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+-                  </>
+-                )}
+-              </em>
+-            </p>
+-            <p>Deadline: {manager.formatDate(q.deadline)}</p>
++            </div>
++            {q.progressMetricsName && q.progressMetricsValue && (
++              <div className="expanded-card-prop">
++                Progress:{" "}
++                <em>
++                  {/* useEffect could preload this, but you can also fetch inline */}
++                  {/* Wrap in Suspense or prefetch in manager for better UX */}
++                  <span>{q.progressMetricsName}: {q?.currentProgress}/{q.progressMetricsValue} </span>
++                </em>
++              </div>
++            )}
++            <div className="expanded-card-prop">Deadline: {manager.formatDate(q.deadline)}</div>
+           </div>
+-          {renderCardButtons(q)}
++          {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
+         </div>
+     );
+     },
+@@ -232,9 +202,11 @@ export default function QuestsTab({ user }) {
+               <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+             </>
+           )}
+-          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
++          <span className="countdown">
++            <manager.Countdown deadline={q.deadline} />
++          </span>        
+         </span>
+-        {renderCardButtons(q)}
++        {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
+       </div>
+     ),
+     [allMotherQuestsMap, allMotherCategoriesMap, manager]
+@@ -253,41 +225,16 @@ export default function QuestsTab({ user }) {
+               <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+             </>
+           )}
+-          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
++          <span className="countdown">
++            <manager.Countdown deadline={q.deadline} />
++          </span>            
+         </span>
+-        {renderCardButtons(q)}
++        {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
+       </div>
+     ),
+     [allMotherQuestsMap, allMotherCategoriesMap, manager]
+   );
+ 
+-  const renderCardButtons = useCallback(
+-    (q) => (
+-      <div className="card-buttons">
+-        <button
+-          className="card-button done"
+-          onClick={() => manager.changeStatus(q)}
+-        >
+-          {q.done ? "Revert" : "Done"}
+-        </button>
+-        <button
+-          className="card-button delete"
+-          onClick={() => manager.remove(q.id)}
+-        >
+-          Delete
+-        </button>
+-        {!isQuestInForm && (
+-          <button
+-            className="card-button edit"
+-            onClick={() => setQuestInForm(q)}
+-          >
+-            Edit
+-          </button>
+-        )}
+-      </div>
+-    ),
+-    [manager]
+-  );
+ 
+ 
+   return (
+@@ -326,8 +273,8 @@ export default function QuestsTab({ user }) {
+ 
+       <div className="row-buttons">
+         {!isQuestInForm && (
+-          <button className="button" onClick={() => setQuestInForm(emptyQuest)}>
+-            + Add Item
++          <button className="button" onClick={() => setQuestInForm(new Quest())}>
++            + Add Quest
+           </button>
+         )}
+         <button
+diff --git a/src/components/SessionsTab.jsx b/src/components/SessionsTab.jsx
+index 360c1fe..39e8ca0 100644
+--- a/src/components/SessionsTab.jsx
++++ b/src/components/SessionsTab.jsx
+@@ -3,54 +3,52 @@ import { QuestRepository } from "../repositories/QuestRepository";
+ import { Session } from "../models/Session";
+ import { Quest } from "../models/Quest";
+ import { useState, useCallback } from "react";
+-import useItemTabManager from "../hooks/useItemTabManager";
++import useSessionTabManager from "../hooks/useSessionTabManager";
+ 
+-export default function SessionsTab({
+-  user
+-}) {
++export default function SessionsTab({user}) {
++  const [pendingSessions, setPendingSessions] = useState([]);
++  const [completedSessions, setCompletedSessions] = useState([]);
+ 
+-  const ItemModel = Session;
+-  const ItemRepository = SessionRepository;
+-  const MotherItemModel = Quest;
+-  const MotherItemRepository = QuestRepository;
++  const [sessionInForm, setSessionInForm] = useState(null);
++  const isSessionInForm = sessionInForm !== null;
+ 
+-  const motherItemVarName = "motherQuestsFks";
++  const [expandedSessionId, setExpandedSessionId] = useState(null);
++  const [isShowCompletedSessions, setIsShowCompletedSessions] = useState(false);
++  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
+ 
+-  const [pendingItems, setPendingItems] = useState([]);
+-  const [completedItems, setCompletedItems] = useState([]);
+-
+-  const [itemBeingEdited, setItemBeingEdited] = useState(null);
+-  const isEditingItem = itemBeingEdited !== null;
+-  const [isAddingItem, setIsAddingItem] = useState(false);
+-  const [isShowCompletedItems, setIsShowCompletedItems] = useState(false);
+-  const [allMotherItemsMap, setAllMotherItemsMap] = useState({});
+-
+-  const manager = useItemTabManager({
+-    user, ItemRepository, MotherItemModel, MotherItemRepository,
+-    setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap
++  const manager = useSessionTabManager({
++    user,
++    setPendingSessions,
++    setCompletedSessions,
++    allMotherQuestsMap,
++    setAllMotherQuestsMap
+   });
+-
+-  const ItemForm = () => {
+-    const [name, setName] = useState(itemBeingEdited?.name || "");
+-    const [motherItemsFks, setMotherItemsFks] = useState(itemBeingEdited?.[motherItemVarName] || []);
+-    const [associatedProgress, setAssociatedProgress] = useState(itemBeingEdited?.associatedProgress || 0);
++  
++  const SessionForm = () => {
++    const [name, setName] = useState(sessionInForm?.name || "");
++    const [motherQuestsFks, setMotherQuestsFks] = useState(sessionInForm?.motherQuestsFks || []);
++    const mainMotherQuest = allMotherQuestsMap[motherQuestsFks[0]];
++    const [associatedProgress, setAssociatedProgress] = useState(sessionInForm?.associatedProgress || 0);
++    const [start, setStart] = useState(sessionInForm?.start || "");
++    const [end, setEnd] = useState(sessionInForm?.end || "");
+ 
+     const finishAddEdit = () => {
+-      setIsAddingItem(false);
+-      setItemBeingEdited(null);
++      setSessionInForm(null);
+     };
+ 
+     const handleSubmit = async (e) => {
+-      console.log("user", user.uid, "Will update/save item", itemBeingEdited?.name, "with", name, motherItemsFks, associatedProgress);
++      console.log("user", user.uid, "Will update/save session", sessionInForm?.name, "with", name, motherQuestsFks, associatedProgress);
+       e.preventDefault();
+-      const item = new ItemModel({ 
+-        ...itemBeingEdited,
++      const session = new Session({ 
++        ...sessionInForm,
+         userId: user.uid,
+         name: name,
+-        [motherItemVarName]: motherItemsFks,
++        motherQuestsFks: motherQuestsFks,
+         associatedProgress: associatedProgress,
+-      })
+-      ItemRepository.save(user.uid, item);
++        start: start,
++        end: end,
++      });
++      await SessionRepository.save(user.uid, session);
+       finishAddEdit();
+     };
+ 
+@@ -59,83 +57,185 @@ export default function SessionsTab({
+         <input
+           type="text"
+           value={name}
+-          placeholder="Item name"
++          placeholder="Session name"
+           onChange={e => setName(e.target.value)}
+           required
+           className="form-input"
+         />
+         <select
+           multiple
+-          value={motherItemsFks}
+-          onChange={e => setMotherItemsFks(Array.from(e.target.selectedOptions).map(o => o.value))}
++          value={motherQuestsFks}
++          onChange={e => setMotherQuestsFks(Array.from(e.target.selectedOptions).map(o => o.value))}
+           required
+           className="form-select"
+         >
+-          {Object.entries(allMotherItemsMap).map(([id, motherItem]) => (
+-            <option key={id} value={id}>{motherItem.name}</option>
++          {Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
++            <option key={id} value={id}>{motherQuest.name}</option>
+           ))}
+         </select>
+-        {allMotherItemsMap[motherItemsFks[0]]?.progressMetricsName !== "hoursSpent"  && (
+-          <input
+-            type="number"
+-            value={associatedProgress}
+-            placeholder={`Associated progress (max: ${allMotherItemsMap[motherItemsFks[0]]?.progressMetricsValue})`}
+-            onChange={e => setAssociatedProgress(Number(e.target.value))}
+-            required
+-            className="form-input"
+-          />
++        {mainMotherQuest && (
++          <span>
++            {(mainMotherQuest.progressMetricsName || "Mother quest progress metric undetermined")}
++            {mainMotherQuest.progressMetricsName !== "hoursSpent"  && (<>
++              {": "}
++              <input
++                type="number"
++                value={associatedProgress}
++                placeholder={`Associated progress (max: ${mainMotherQuest.progressMetricsValue})`}
++                onChange={e => setAssociatedProgress(Number(e.target.value))}
++                required
++                className="form-input"
++              />
++            </>)}
++          </span>
+         )}
+-        <button type="submit" className="button primary"> {itemBeingEdited ? "Save" : "Add"} </button>
++
++        <input
++          type="datetime-local"
++          value={start}
++          onChange={(e) => setStart(e.target.value)}
++        />
++
++        <input
++          type="datetime-local"
++          value={end}
++          onChange={(e) => setEnd(e.target.value)}
++        />
++
++        <button type="submit" className="button primary">
++          {sessionInForm.id ? "Save changes" : "Add"}
++        </button>
+         <button type="button" className="button" onClick={finishAddEdit}>Cancel</button>
+       </form>
+     );
+   };
+ 
+-  const renderItem = useCallback((q) => (
+-    <li key={q.id} className="card-li">
+-      <div className="card">
+-        <span className="card-text">
+-          {q.name} 
+-          <span className="card-splitter">✦</span>
+-          {manager.formatDateRange(q.start, q.end)}
+-          <span className="card-splitter">✦</span>
+-          {" ("}{(q[motherItemVarName]?.length > 0 ? q[motherItemVarName].map(id => allMotherItemsMap[id].name || id).join(", ") : "No mother quests")}{")"}
+-        </span>
+-        <div className="card-buttons">
+-          <button className="card-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>
+-          <button className="card-button delete" onClick={() => manager.remove(q.id)}>Delete</button>
+-          {!isEditingItem && !isAddingItem && (
+-            <button className="card-button edit" onClick={() => setItemBeingEdited(q)}>Edit</button>
+-          )}
++  const renderExpandedSessionCard = useCallback(
++    (s) => {
++      const mainMotherQuest = s.motherQuestsFks?.length
++        ? allMotherQuestsMap[s.motherQuestsFks[0]]
++        : null;
++  
++      return (
++        <div
++          className="card"
++          onClick={() => setExpandedSessionId(null)}
++          style={{ cursor: "pointer" }}
++        >
++          <div>
++            <div className="card-title expanded-card-prop">{s.name}</div>
++            <div className="expanded-card-prop">
++              Mother Quest:{" "}
++              {s.motherQuestsFks?.length > 0
++                ? s.motherQuestsFks
++                    .map((id) => allMotherQuestsMap[id]?.name ?? id)
++                    .join(", ")
++                : "No mother items"}
++            </div>
++            {mainMotherQuest.progressMetricsName && mainMotherQuest.progressMetricsValue && (
++              <div className="expanded-card-prop">
++                Reward:{" "}
++                {/* useEffect could preload this, but you can also fetch inline */}
++                {/* Wrap in Suspense or prefetch in manager for better UX */}                  
++                {s?.associatedProgress || "?"} {mainMotherQuest.progressMetricsName} out of {mainMotherQuest.progressMetricsValue}
++              </div>
++            )}
++            <div className="expanded-card-prop">
++              Time range: {s.start && s.end && manager.formatDateRange(s.start, s.end)}
++            </div>
++          </div>
++          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
++        </div>
++      );
++    },
++    [allMotherQuestsMap, manager]
++  );
++
++  const renderSessionCard = useCallback(
++    (s) => {
++      const mainMotherQuest = allMotherQuestsMap[s.motherQuestsFks[0]];
++      const progressMetricsName = mainMotherQuest?.progressMetricsName;
++      const progressMetricsValue = mainMotherQuest?.progressMetricsValue;
++      return (
++        <div
++          className="card"
++          onClick={() => setExpandedSessionId(s.id)}
++          style={{ cursor: "pointer" }}
++        >
++          <span className="card-text">
++            {s.name} 
++            {progressMetricsName && progressMetricsValue && (
++              <>
++                <span className="card-splitter">✦</span>
++                <span>{progressMetricsName}: {s.associatedProgress}/{progressMetricsValue}</span>
++              </>
++            )}
++            {s.start && s.end && (
++              <span className="countdown">
++                <manager.SessionCountdown start={s.start} end={s.end} />
++              </span>
++            )}
++          </span>
++          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
+         </div>
+-      </div>
+-    </li>
+-  ), [allMotherItemsMap, manager]);
++      );
++    },
++    [allMotherQuestsMap, manager]
++  );
+ 
+   return (
+     <>
+       <h2 style={{ marginBottom: "0.5rem" }}>Pending</h2>
+-      {pendingItems.length === 0 && <p>No pending items. Add your next item!</p>}
++      {pendingSessions.length === 0 && (
++        <p>No pending sessions. Add your next session!</p>
++      )}
++
++
+       <ul>
+-        {pendingItems.map(q => renderItem(q))}
++        {pendingSessions.map((s) =>
++          expandedSessionId === s.id ? (
++            <li key={s.id} className="card-li">
++              {renderExpandedSessionCard(s)}
++            </li>
++          ) : (
++            <li key={s.id} className="card-li">
++              {renderSessionCard(s)}
++            </li>
++          )
++        )}
+       </ul>
+ 
+-      {(isEditingItem || isAddingItem) && <ItemForm />}
++
++      {/* <ul>
++        {pendingSessions.map(s => (
++          <li key={s.id} className="card-li">
++            {renderSessionCard(s)}
++          </li>
++        ))}
++      </ul>*/}
++
++      {isSessionInForm && <SessionForm />}
+ 
+       <div className="row-buttons">
+-        {!isAddingItem && !isEditingItem && (
+-          <button className="button" onClick={() => setIsAddingItem(true)}>+ Add Item</button>
++        {!isSessionInForm && (
++          <button className="button" onClick={() => setSessionInForm(new Session())}>
++            + Add Session
++          </button>
+         )}
+-        <button className="button" onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}>
+-          {isShowCompletedItems ? "Hide Completed Items" : "See Completed Items"}
++        <button className="button" onClick={() => setIsShowCompletedSessions(!isShowCompletedSessions)}>
++          {isShowCompletedSessions ? "Hide Completed Sessions" : "See Completed Sessions"}
+         </button>
+       </div>
+ 
+-      {isShowCompletedItems && (
++      {isShowCompletedSessions && (
+         <>
+           <h2>Completed</h2>
+           <ul>
+-            {completedItems.map(q => renderItem(q))}
++            {completedSessions.map(s => (
++              <li key={s.id} className="card-li">
++                {renderSessionCard(s)}
++              </li>
++            ))}
+           </ul>
+         </>
+       )}
+diff --git a/src/hooks/Auth.jsx b/src/hooks/Auth.jsx
+deleted file mode 100644
+index 81833a2..0000000
+--- a/src/hooks/Auth.jsx
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// useAuth.js
+-import { useState, useEffect } from "react";
+-import { auth, googleProvider } from "../config/firebase-config";
+-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+-import { UserRepository } from "../repositories/UserRepository";
+-import { User } from "../models/User";
+-
+-export const useAuth = () => {
+-  const [user, setUser] = useState(null);
+-  const [loading, setLoading] = useState(true);
+-
+-  const saveUser = async (firebaseUser) => {
+-    const uid = firebaseUser.uid;
+-    const userModel = new User({
+-      uid: uid,
+-      firstName: firebaseUser.displayName?.split(" ")[0] || "",
+-      lastName: firebaseUser.displayName?.split(" ").slice(1).join(" ") || "",
+-      email: firebaseUser.email,
+-    });
+-    await UserRepository.save(uid, userModel).catch(console.error);
+-    setUser(userModel);
+-  };
+-
+-  const signInWithGoogle = async () => {
+-    try {
+-      const result = await signInWithPopup(auth, googleProvider);
+-      saveUser(result.user);
+-    } catch (err) {
+-      console.error(err);
+-    }
+-  };
+-
+-  const logout = async () => {
+-    await signOut(auth).catch(console.error);
+-    setUser(null);
+-  };
+-
+-  useEffect(() => {
+-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+-      if (firebaseUser) saveUser(firebaseUser);
+-      else setUser(null);
+-      setLoading(false);
+-    });
+-    return unsubscribe;
+-  }, []);
+-
+-  return { user, loading, signInWithGoogle, logout };
+-};
+diff --git a/src/hooks/useItemTabManager.jsx b/src/hooks/useItemTabManager.jsx
+deleted file mode 100644
+index 52e8599..0000000
+--- a/src/hooks/useItemTabManager.jsx
++++ /dev/null
+@@ -1,89 +0,0 @@
+-import { useEffect } from "react";
+-import { format, isSameDay, isSameMonth, isSameYear } from "date-fns";
+-
+-export default function useItemTabManager({ 
+-  user, ItemRepository, MotherItemModel, MotherItemRepository,
+-  setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap, 
+-}) {
+-  
+-  useEffect(() => {
+-    if (!user) return;
+-    const unsubscribe = ItemRepository.onFieldChange("userId", user.uid, (items) => {
+-      setPendingItems(items.filter(i => !i.isDone));
+-      setCompletedItems(items.filter(i => i.isDone));
+-    });
+-    return () => unsubscribe();
+-  }, [user]);
+-
+-  useEffect(() => {
+-    if (!user) return;
+-    let unsubscribe = () => {};
+-  
+-    const updateMotherItemsMap = (items) => {
+-      const updatedMap = { ...allMotherItemsMap };
+-      items.forEach(item => { updatedMap[item.id] = item; });
+-      setAllMotherItemsMap(updatedMap);
+-    };
+-
+-    if (MotherItemModel.name === "QuestCategory") {
+-      MotherItemRepository.findAll().then(updateMotherItemsMap); // case of MotherItemRepository = QuestCategoryRepository
+-    } else {
+-      unsubscribe = MotherItemRepository.onFieldChange("userId", user.uid, (items) => {
+-        updateMotherItemsMap(items);
+-      });
+-    }
+-  
+-    return () => unsubscribe();
+-  }, [user]);
+-
+-
+-  const changeStatus = async (item) => {
+-    console.log("Request to change status of item", item.id, "by user", user.uid);
+-    const updated = { ...item, status: item.isDone ? "pending" : "completed" };
+-    await ItemRepository.save(user.uid, updated);
+-  };
+-
+-  const remove = async (id) => {
+-    if (!window.confirm("Are you sure? This action is irreversible.")) return;
+-    await ItemRepository.deleteMany(user.uid, [id]);
+-  };
+-
+-
+-  function formatDateRange(start, end) {
+-    if (!start || !end) return "";
+-  
+-    const s = new Date(start);
+-    const e = new Date(end);
+-    const now = new Date();
+-  
+-    const showYearStart = s.getFullYear() !== now.getFullYear();
+-    const showYearEnd = e.getFullYear() !== now.getFullYear();
+-  
+-    if (isSameDay(s, e)) {
+-      // same day → show full date once, then only time for end
+-      const fmt = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmt)} - ${format(e, "HH:mm")}`;
+-    }
+-  
+-    if (isSameMonth(s, e)) {
+-      // same month → repeat day + time, year only if different from current
+-      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmtStart)} - ${format(e, "d HH:mm")}`;
+-    }
+-  
+-    if (isSameYear(s, e)) {
+-      // same year, different month
+-      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmtStart)} - ${format(e, "d MMM HH:mm")}`;
+-    }
+-  
+-    // different years
+-    return `${format(s, "d MMM yyyy HH:mm")} - ${format(e, "d MMM yyyy HH:mm")}`;
+-  }
+-  
+-  return {
+-    changeStatus,
+-    remove,
+-    formatDateRange,
+-  };
+-}
+\ No newline at end of file
+diff --git a/src/hooks/useQuestTabManager.js b/src/hooks/useQuestTabManager.js
+deleted file mode 100644
+index 94bca42..0000000
+--- a/src/hooks/useQuestTabManager.js
++++ /dev/null
+@@ -1,158 +0,0 @@
+-import { useEffect } from "react";
+-import { format, isSameDay, isSameMonth, isSameYear } from "date-fns";
+-import { QuestRepository } from "../repositories/QuestRepository";
+-import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
+-
+-export default function useQuestTabManager({ 
+-   user, 
+-   setPendingQuests, 
+-   setCompletedQuests, 
+-   allMotherQuestsMap, 
+-   setAllMotherQuestsMap, 
+-   allMotherCategoriesMap, 
+-   setAllMotherCategoriesMap 
+-}) {
+-  
+-useEffect(() => {
+-  if (!user) return;
+-
+-  async function attachProgress(quest) {
+-    const progress = await quest.getCurrentProgress();
+-    quest.currentProgress = progress; // preserve class methods
+-    return quest;
+-  }
+-
+-  async function withProgress(quests) {
+-    return Promise.all(quests.map(attachProgress));
+-  }
+-
+-  const unsubscribeQuests = QuestRepository.onFieldChange("userId", user.uid, async (quests) => {
+-    const [pending, completed] = await Promise.all([
+-      withProgress(quests.filter(q => !q.isDone)),
+-      withProgress(quests.filter(q => q.isDone)),
+-    ]);
+-    setPendingQuests(pending);
+-    setCompletedQuests(completed);
+-  });
+-
+-  const updateItemsMap = (items, setAllItemsMap) => {
+-    const updatedMap = {};
+-    items.forEach(item => { updatedMap[item.id] = item; });
+-    setAllItemsMap(updatedMap);
+-  };
+-
+-  const unsubscribeMotherQuests = QuestRepository.onFieldChange("userId", user.uid, (quests) => {
+-    updateItemsMap(quests, setAllMotherQuestsMap);
+-  });
+-
+-  QuestCategoryRepository.findAll()
+-    .then((categories) => updateItemsMap(categories, setAllMotherCategoriesMap));
+-
+-  return () => {
+-    unsubscribeQuests();
+-    unsubscribeMotherQuests();
+-  };
+-}, [user]);
+-
+-
+-
+-  const changeStatus = async (quest) => {
+-    console.log("Request to change status of quest", quest.id, "by user", user.uid);
+-    const updated = { ...quest, status: quest.isDone ? "pending" : "completed" };
+-    await QuestRepository.save(user.uid, updated);
+-  };
+-
+-  const save = async (quest) => {
+-    await QuestRepository.save(user.uid, quest);
+-  };
+-
+-  const remove = async (id) => {
+-    if (!window.confirm("Are you sure? This action is irreversible.")) return;
+-    await QuestRepository.deleteMany(user.uid, [id]);
+-  };
+-
+-  function getCountDown(deadline) {
+-    if (!deadline) return "";
+-  
+-    const now = new Date();
+-    const target = new Date(deadline);
+-    const diffMs = target - now;
+-  
+-    if (diffMs <= 0) return "Expired";
+-  
+-    const totalSeconds = Math.floor(diffMs / 1000);
+-    const days = Math.floor(totalSeconds / 86400);
+-    const hours = Math.floor((totalSeconds % 86400) / 3600);
+-    const minutes = Math.floor((totalSeconds % 3600) / 60);
+-    const seconds = totalSeconds % 60;
+-  
+-    if (days > 0) {
+-      return `${days}d ${hours}h`;
+-    } else if (hours > 0) {
+-      return `${hours}h ${minutes}m`;
+-    } else if (minutes > 0) {
+-      return `${minutes}m ${seconds}s`;
+-    } else {
+-      return `${seconds}s`;
+-    }
+-  }  
+-
+-  function toDateTimeLocalString(date) {
+-    if (!date) return "";
+-    const pad = (n) => String(n).padStart(2, "0");
+-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+-  }
+-
+-  function formatDate(date) {
+-    if (!date) return "";
+-    const d = new Date(date);
+-    const now = new Date();
+-  
+-    const showYear = d.getFullYear() !== now.getFullYear();
+-    const fmt = `d MMM${showYear ? " yyyy" : ""} HH:mm`;
+-  
+-    return format(d, fmt);
+-  }
+-
+-  function formatDateRange(start, end) {
+-    if (!start || !end) return "";
+-  
+-    const s = new Date(start);
+-    const e = new Date(end);
+-    const now = new Date();
+-  
+-    const showYearStart = s.getFullYear() !== now.getFullYear();
+-    const showYearEnd = e.getFullYear() !== now.getFullYear();
+-  
+-    if (isSameDay(s, e)) {
+-      // same day → show full date once, then only time for end
+-      const fmt = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmt)} - ${format(e, "HH:mm")}`;
+-    }
+-  
+-    if (isSameMonth(s, e)) {
+-      // same month → repeat day + time, year only if different from current
+-      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmtStart)} - ${format(e, "d HH:mm")}`;
+-    }
+-  
+-    if (isSameYear(s, e)) {
+-      // same year, different month
+-      const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
+-      return `${format(s, fmtStart)} - ${format(e, "d MMM HH:mm")}`;
+-    }
+-  
+-    // different years
+-    return `${format(s, "d MMM yyyy HH:mm")} - ${format(e, "d MMM yyyy HH:mm")}`;
+-  }
+-  
+-  return {
+-    save,
+-    remove,
+-    changeStatus,
+-    formatDate,
+-    formatDateRange,
+-    toDateTimeLocalString,
+-    getCountDown,
+-  };
+-}
+\ No newline at end of file
+diff --git a/src/index.css b/src/index.css
+index 0c4a965..60a7bc5 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -216,11 +216,35 @@ button.primary:hover, .tab-buttons button.active:hover {
+   margin-left: auto;
+ }
+ 
++/* ===== EXPANDED CARD ===== */
++.card-title {
++  padding-bottom: 0.3rem;
++  margin-bottom: 0.6rem;
++  position: relative;
++  font-size: 1.3em;
++  /* font-weight: bold;  */
++}
++
++.card-title::after {
++  content: "";
++  position: absolute;
++  left: 0;
++  bottom: 0;
++  width: 100%;
++  height: 4px;
++  background: var(--gold);
++  box-shadow: 0 0 1px var(--bg), 0 0 2px #fff;
++}
++
++.expanded-card-prop {
++  margin: 0.5rem 0;  /* tighter than default ~1em */
++}
++
+ /* ===== SUB QUEST CARD ===== */
+ /* Nested list for subquests */
+ .sub-quests {
+   list-style: none;   /* remove default bullets */
+-  margin: 0.5rem 0 0.5rem 2rem; /* indent whole list relative to parent */
++  margin: 0 0 0 50px; /* indent whole list relative to parent */
+   padding: 0;
+ }
+ 
+@@ -233,7 +257,6 @@ button.primary:hover, .tab-buttons button.active:hover {
+   max-width: 950px;
+   margin: 0 auto;
+   padding: 0.6rem 0.8rem;
+-  gap: 1rem;
+ 
+   background: var(--fg);
+   border: 4px solid var(--silver);
+diff --git a/src/models/Quest.js b/src/models/Quest.js
+index 60dd306..d718628 100644
+--- a/src/models/Quest.js
++++ b/src/models/Quest.js
+@@ -5,13 +5,13 @@ import { SessionRepository } from "../repositories/SessionRepository";
+ export class Quest {
+   constructor({ 
+     id = crypto.randomUUID(),
+-    userId,
++    userId = "",
+     isSubQuest = false,
+-    motherQuestsFks,
+-    name,
+-    deadline,
+-    progressMetricsName = null,
+-    progressMetricsValue = null,
++    motherQuestsFks = [],
++    name = "",
++    deadline = Date.now() + 24 * 60 * 60 * 1000,
++    progressMetricsName = "",
++    progressMetricsValue = 0,
+     difficulty = 5,
+     comment = "",
+   } = {}) {
+@@ -21,7 +21,7 @@ export class Quest {
+     this.motherQuestsFks = motherQuestsFks;
+     this.name = name;
+     // set deadline to midnight today by default
+-    this.deadline = deadline ? new Date(deadline) : new Date(Date.now() + 24 * 60 * 60 * 1000);
++    this.deadline = new Date(deadline);
+     this.difficulty = difficulty; // scale of 1-10
+     this.comment = comment;
+     this.progressMetricsName = progressMetricsName;
+@@ -29,7 +29,7 @@ export class Quest {
+   }
+ 
+   async getCurrentProgress() {
+-    const sessions = await SessionRepository.findByField("userId", this.userId);
++    const sessions = await SessionRepository.findByUserAndField(this.userId, "userId", this.userId);
+     const relevant_sessions = sessions.filter(
+       s => (s.motherQuestsFKs || []).includes(this.id) && s.isDone
+     );
+diff --git a/src/models/QuestCategory.js b/src/models/QuestCategory.js
+index bdcf840..cad90e7 100644
+--- a/src/models/QuestCategory.js
++++ b/src/models/QuestCategory.js
+@@ -1,7 +1,7 @@
+ export class QuestCategory {
+    constructor({
+      id = crypto.randomUUID(),
+-     name,
++     name = "",
+      desc = "",
+    } = {}) {
+      this.id = id;
+diff --git a/src/models/Session.js b/src/models/Session.js
+index 5bbd942..b2a1def 100644
+--- a/src/models/Session.js
++++ b/src/models/Session.js
+@@ -1,14 +1,17 @@
++
++import { QuestRepository } from "../repositories/QuestRepository";
++
+ export class Session {
+   #associatedProgress; // private backing field
+ 
+    constructor({
+      id = crypto.randomUUID(),
+-     userId,
+-     name,
+-     motherQuestsFks,
+-     associatedProgress,
+-     start= new Date(Date.now()),
+-     end= new Date(Date.now() + 2 * 60 * 60 * 1000), // default end time 2 hours from start time
++     userId = "",
++     name = "",
++     motherQuestsFks = [],
++     associatedProgress = 0,
++     start= Date.now(),
++     end= Date.now() + 2 * 60 * 60 * 1000, // default end time 2 hours from start time
+      recurrence = null, // null if not recurring, otherwise a time interval 
+      status = "pending", // "pending", "in-progress", "completed"
+      comment = "",
+@@ -18,8 +21,8 @@ export class Session {
+      this.name = name;
+      this.motherQuestsFks = motherQuestsFks;
+      this.#associatedProgress = associatedProgress;
+-     this.start = start;
+-     this.end = end;
++     this.start = new Date(start);
++     this.end = new Date(end);
+      this.recurrence = recurrence;
+      this.status = status;
+      this.comment = comment;
+@@ -27,9 +30,10 @@ export class Session {
+  
+    // If the first motherQuestsFK has progressMetricsName="hoursSpent", return the associated progress, otherwise return associatedProgress passed to constructor
+    get associatedProgress() {
+-    if (
+-      this.motherQuestsFks[0]?.progressMetricsName === "hoursSpent"
+-    ) {
++    if (!this.userId || this.motherQuestsFks.length === 0) return this.#associatedProgress;
++    if (QuestRepository.findByUserAndField(
++        this.userId, "id", this.motherQuestsFks[0]
++      )?.progressMetricsName === "hoursSpent") {
+       return (this.end - this.start) / (1000 * 60); // in minutes
+     } 
+     return this.#associatedProgress;
+diff --git a/src/models/User.js b/src/models/User.js
+index 548e036..7fd69ec 100644
+--- a/src/models/User.js
++++ b/src/models/User.js
+@@ -1,9 +1,9 @@
+ export class User {
+    constructor({
+      uid = crypto.randomUUID(),
+-     firstName,
+-     lastName,
+-     email,
++     firstName = "",
++     lastName = "",
++     email = "",
+    } = {}) {
+      this.uid = uid;
+      this.firstName = firstName;
+diff --git a/src/repositories/ItemRepository.jsx b/src/repositories/ItemRepository.jsx
+deleted file mode 100644
+index ffaa7d0..0000000
+--- a/src/repositories/ItemRepository.jsx
++++ /dev/null
+@@ -1,56 +0,0 @@
+-import { doc, getDocs, setDoc, deleteDoc, query, collection, where, onSnapshot } from "firebase/firestore";
+-import { db } from "../config/firebase-config";
+-
+-export class ItemRepository {
+-   constructor(collectionName, mapper) {
+-     this.collectionName = collectionName;
+-     this.mapper = mapper;
+-   }
+- 
+-   // Find all items
+-   async findAll() {
+-      const snap = await getDocs(collection(db, this.collectionName));
+-      return snap.docs.map(docSnap => this.mapper.fromDTO({ id: docSnap.id, ...docSnap.data() }));
+-    }
+-
+-   // Find items with the given field and value
+-   async findByField(field, value) {
+-     if (!value) return [];
+-     const q = query(collection(db, this.collectionName), where(field, "==", value));
+-     const snap = await getDocs(q);
+-     return snap.docs.map(docSnap => this.mapper.fromDTO({ id: docSnap.id, ...docSnap.data() }));
+-   }
+- 
+-  /**
+-   * Subscribes to real-time updates of items with the given field and value.
+-   * Calls input `callback` with an array of Item objects whenever the data changes.
+-   * Returns an unsubscribe function to stop listening (useful for cleanup in React components through useEffect)
+-   */
+-   onFieldChange(field, value, callback) {
+-     if (!value) return () => {};
+-     const q = query(collection(db, this.collectionName), where(field, "==", value));
+-     const unsubscribe = onSnapshot(q, (snapshot) => {
+-       const items = snapshot.docs.map(docSnap => this.mapper.fromDTO({ id: docSnap.id, ...docSnap.data() }));
+-       callback(items);
+-     });
+-     return unsubscribe;
+-   }
+- 
+-   // Save an item to the database
+-   async save(userId, item) {
+-    console.log("Saving item", this.mapper.toDTO(item), "for user", userId);
+-    if (!item?.id) return;                  // always require an id
+-    if (item.userId && item.userId !== userId) return;  // only enforce if userId is present
+-    const ref = doc(db, this.collectionName, item.id);
+-    await setDoc(ref, this.mapper.toDTO(item), { merge: true });
+-  }
+- 
+-   // Delete multiple items from the database
+-   async deleteMany(userId, ids) {
+-    console.log("Request to delete items", ids, "by user", userId);
+-     if (!ids?.length) return;
+-     const deletes = ids.map(id => deleteDoc(doc(db, this.collectionName, id)));
+-     await Promise.all(deletes);
+-   }
+- }
+- 
+\ No newline at end of file
+diff --git a/src/repositories/QuestCategoryRepository.jsx b/src/repositories/QuestCategoryRepository.jsx
+index 021d23b..532869f 100644
+--- a/src/repositories/QuestCategoryRepository.jsx
++++ b/src/repositories/QuestCategoryRepository.jsx
+@@ -1,5 +1,4 @@
+ import { QuestCategory } from "../models/QuestCategory";
+-import { ItemRepository } from "./ItemRepository";
+ 
+ // Mapper
+ export const QuestCategoryMapper = {
+@@ -9,11 +8,27 @@ export const QuestCategoryMapper = {
+     desc: doc.desc,
+   }),
+   toDTO: (category) => ({
+-    id: category.id,
++    id: category.id,  
+     name: category.name,
+     desc: category.desc,
+   })
+ };
+ 
+ // Repository
+-export const QuestCategoryRepository = new ItemRepository("questCategories", QuestCategoryMapper);
++import { CommonRepository } from "./CommonRepository";
++import { db } from "../config/firebase-config";
++import { collection, query, getDocs } from "firebase/firestore";
++
++class QuestCategoryRepository extends CommonRepository {
++  constructor() {
++    super("questCategories", QuestCategoryMapper);
++  }
++
++  async findAll() {
++    const q = query(collection(db, this.collectionName));
++    const snap = await getDocs(q);
++    return snap.docs.map(docSnap => this.mapper.fromDTO({ id: docSnap.id, ...docSnap.data() }));
++  }
++}
++
++export const questCategoryRepository = new QuestCategoryRepository();
+\ No newline at end of file
+diff --git a/src/repositories/QuestRepository.jsx b/src/repositories/QuestRepository.jsx
+index 79ecd9f..9932e8c 100644
+--- a/src/repositories/QuestRepository.jsx
++++ b/src/repositories/QuestRepository.jsx
+@@ -1,6 +1,6 @@
+ 
+ import { Quest } from "../models/Quest";
+-import { ItemRepository } from "./ItemRepository";
++import { CommonRepository } from "./CommonRepository";
+ 
+ // Mapper
+ export const QuestMapper = {
+@@ -36,4 +36,4 @@ export const QuestMapper = {
+ };
+ 
+ // Repository
+-export const QuestRepository = new ItemRepository("quests", QuestMapper);
++export const QuestRepository = new CommonRepository("quests", QuestMapper);
+diff --git a/src/repositories/SessionRepository.jsx b/src/repositories/SessionRepository.jsx
+index 21517b0..298cabd 100644
+--- a/src/repositories/SessionRepository.jsx
++++ b/src/repositories/SessionRepository.jsx
+@@ -1,5 +1,5 @@
+ import { Session } from "../models/Session";
+-import { ItemRepository } from "./ItemRepository";
++import { CommonRepository } from "./CommonRepository";
+ 
+ // Mapper
+ export const SessionMapper = {
+@@ -30,4 +30,4 @@ export const SessionMapper = {
+ };
+ 
+ // Repository
+-export const SessionRepository = new ItemRepository("sessions", SessionMapper);
++export const SessionRepository = new CommonRepository("sessions", SessionMapper);
+diff --git a/src/repositories/UserRepository.jsx b/src/repositories/UserRepository.jsx
+index 65d34c3..9cc0adf 100644
+--- a/src/repositories/UserRepository.jsx
++++ b/src/repositories/UserRepository.jsx
+@@ -1,5 +1,7 @@
+ import { User } from "../models/User";
+-import { ItemRepository } from "./ItemRepository";
++import { CommonRepository } from "./CommonRepository";
++import { doc, setDoc } from "firebase/firestore";
++import { db } from "../config/firebase-config";
+ 
+ // Mapper
+ export const UserMapper = {
+@@ -17,4 +19,28 @@ export const UserMapper = {
+   })
+ };
+ 
+-export const UserRepository = new ItemRepository("users", UserMapper);
+\ No newline at end of file
++class UserRepository extends CommonRepository {
++  constructor() {
++    super("users", UserMapper);
++  }
++
++  async save(uid, user) {
++    if (!uid) {
++      console.error("No uid provided for user save");
++      return;
++    }
++    if (!user) {
++      console.error("No user model provided");
++      return;
++    }
++
++    const ref = doc(db, this.collectionName, uid);
++    const dto = { ...this.mapper.toDTO(user), uid };
++
++    console.log("Saving user", dto, "to collection:", this.collectionName);
++
++    await setDoc(ref, dto, { merge: true });
++  }
++}
++
++export const userRepository = new UserRepository();
+\ No newline at end of file

@@ -3,54 +3,52 @@ import { QuestRepository } from "../repositories/QuestRepository";
 import { Session } from "../models/Session";
 import { Quest } from "../models/Quest";
 import { useState, useCallback } from "react";
-import useItemTabManager from "../hooks/useItemTabManager";
+import useSessionTabManager from "../hooks/useSessionTabManager";
 
-export default function SessionsTab({
-  user
-}) {
+export default function SessionsTab({user}) {
+  const [pendingSessions, setPendingSessions] = useState([]);
+  const [completedSessions, setCompletedSessions] = useState([]);
 
-  const ItemModel = Session;
-  const ItemRepository = SessionRepository;
-  const MotherItemModel = Quest;
-  const MotherItemRepository = QuestRepository;
+  const [sessionInForm, setSessionInForm] = useState(null);
+  const isSessionInForm = sessionInForm !== null;
 
-  const motherItemVarName = "motherQuestsFks";
+  const [expandedSessionId, setExpandedSessionId] = useState(null);
+  const [isShowCompletedSessions, setIsShowCompletedSessions] = useState(false);
+  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
 
-  const [pendingItems, setPendingItems] = useState([]);
-  const [completedItems, setCompletedItems] = useState([]);
-
-  const [itemBeingEdited, setItemBeingEdited] = useState(null);
-  const isEditingItem = itemBeingEdited !== null;
-  const [isAddingItem, setIsAddingItem] = useState(false);
-  const [isShowCompletedItems, setIsShowCompletedItems] = useState(false);
-  const [allMotherItemsMap, setAllMotherItemsMap] = useState({});
-
-  const manager = useItemTabManager({
-    user, ItemRepository, MotherItemModel, MotherItemRepository,
-    setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap
+  const manager = useSessionTabManager({
+    user,
+    setPendingSessions,
+    setCompletedSessions,
+    allMotherQuestsMap,
+    setAllMotherQuestsMap
   });
-
-  const ItemForm = () => {
-    const [name, setName] = useState(itemBeingEdited?.name || "");
-    const [motherItemsFks, setMotherItemsFks] = useState(itemBeingEdited?.[motherItemVarName] || []);
-    const [associatedProgress, setAssociatedProgress] = useState(itemBeingEdited?.associatedProgress || 0);
+  
+  const SessionForm = () => {
+    const [name, setName] = useState(sessionInForm?.name || "");
+    const [motherQuestsFks, setMotherQuestsFks] = useState(sessionInForm?.motherQuestsFks || []);
+    const mainMotherQuest = allMotherQuestsMap[motherQuestsFks[0]];
+    const [associatedProgress, setAssociatedProgress] = useState(sessionInForm?.associatedProgress || 0);
+    const [start, setStart] = useState(sessionInForm?.start || "");
+    const [end, setEnd] = useState(sessionInForm?.end || "");
 
     const finishAddEdit = () => {
-      setIsAddingItem(false);
-      setItemBeingEdited(null);
+      setSessionInForm(null);
     };
 
     const handleSubmit = async (e) => {
-      console.log("user", user.uid, "Will update/save item", itemBeingEdited?.name, "with", name, motherItemsFks, associatedProgress);
+      console.log("user", user.uid, "Will update/save session", sessionInForm?.name, "with", name, motherQuestsFks, associatedProgress);
       e.preventDefault();
-      const item = new ItemModel({ 
-        ...itemBeingEdited,
+      const session = new Session({ 
+        ...sessionInForm,
         userId: user.uid,
         name: name,
-        [motherItemVarName]: motherItemsFks,
+        motherQuestsFks: motherQuestsFks,
         associatedProgress: associatedProgress,
-      })
-      ItemRepository.save(user.uid, item);
+        start: start,
+        end: end,
+      });
+      await SessionRepository.save(user.uid, session);
       finishAddEdit();
     };
 
@@ -59,83 +57,185 @@ export default function SessionsTab({
         <input
           type="text"
           value={name}
-          placeholder="Item name"
+          placeholder="Session name"
           onChange={e => setName(e.target.value)}
           required
           className="form-input"
         />
         <select
           multiple
-          value={motherItemsFks}
-          onChange={e => setMotherItemsFks(Array.from(e.target.selectedOptions).map(o => o.value))}
+          value={motherQuestsFks}
+          onChange={e => setMotherQuestsFks(Array.from(e.target.selectedOptions).map(o => o.value))}
           required
           className="form-select"
         >
-          {Object.entries(allMotherItemsMap).map(([id, motherItem]) => (
-            <option key={id} value={id}>{motherItem.name}</option>
+          {Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
+            <option key={id} value={id}>{motherQuest.name}</option>
           ))}
         </select>
-        {allMotherItemsMap[motherItemsFks[0]]?.progressMetricsName !== "hoursSpent"  && (
-          <input
-            type="number"
-            value={associatedProgress}
-            placeholder={`Associated progress (max: ${allMotherItemsMap[motherItemsFks[0]]?.progressMetricsValue})`}
-            onChange={e => setAssociatedProgress(Number(e.target.value))}
-            required
-            className="form-input"
-          />
+        {mainMotherQuest && (
+          <span>
+            {(mainMotherQuest.progressMetricsName || "Mother quest progress metric undetermined")}
+            {mainMotherQuest.progressMetricsName !== "hoursSpent"  && (<>
+              {": "}
+              <input
+                type="number"
+                value={associatedProgress}
+                placeholder={`Associated progress (max: ${mainMotherQuest.progressMetricsValue})`}
+                onChange={e => setAssociatedProgress(Number(e.target.value))}
+                required
+                className="form-input"
+              />
+            </>)}
+          </span>
         )}
-        <button type="submit" className="button primary"> {itemBeingEdited ? "Save" : "Add"} </button>
+
+        <input
+          type="datetime-local"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+        />
+
+        <input
+          type="datetime-local"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+        />
+
+        <button type="submit" className="button primary">
+          {sessionInForm.id ? "Save changes" : "Add"}
+        </button>
         <button type="button" className="button" onClick={finishAddEdit}>Cancel</button>
       </form>
     );
   };
 
-  const renderItem = useCallback((q) => (
-    <li key={q.id} className="card-li">
-      <div className="card">
-        <span className="card-text">
-          {q.name} 
-          <span className="card-splitter">✦</span>
-          {manager.formatDateRange(q.start, q.end)}
-          <span className="card-splitter">✦</span>
-          {" ("}{(q[motherItemVarName]?.length > 0 ? q[motherItemVarName].map(id => allMotherItemsMap[id].name || id).join(", ") : "No mother quests")}{")"}
-        </span>
-        <div className="card-buttons">
-          <button className="card-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>
-          <button className="card-button delete" onClick={() => manager.remove(q.id)}>Delete</button>
-          {!isEditingItem && !isAddingItem && (
-            <button className="card-button edit" onClick={() => setItemBeingEdited(q)}>Edit</button>
-          )}
+  const renderExpandedSessionCard = useCallback(
+    (s) => {
+      const mainMotherQuest = s.motherQuestsFks?.length
+        ? allMotherQuestsMap[s.motherQuestsFks[0]]
+        : null;
+  
+      return (
+        <div
+          className="card"
+          onClick={() => setExpandedSessionId(null)}
+          style={{ cursor: "pointer" }}
+        >
+          <div>
+            <div className="card-title expanded-card-prop">{s.name}</div>
+            <div className="expanded-card-prop">
+              Mother Quest:{" "}
+              {s.motherQuestsFks?.length > 0
+                ? s.motherQuestsFks
+                    .map((id) => allMotherQuestsMap[id]?.name ?? id)
+                    .join(", ")
+                : "No mother items"}
+            </div>
+            {mainMotherQuest.progressMetricsName && mainMotherQuest.progressMetricsValue && (
+              <div className="expanded-card-prop">
+                Reward:{" "}
+                {/* useEffect could preload this, but you can also fetch inline */}
+                {/* Wrap in Suspense or prefetch in manager for better UX */}                  
+                {s?.associatedProgress || "?"} {mainMotherQuest.progressMetricsName} out of {mainMotherQuest.progressMetricsValue}
+              </div>
+            )}
+            <div className="expanded-card-prop">
+              Time range: {s.start && s.end && manager.formatDateRange(s.start, s.end)}
+            </div>
+          </div>
+          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
         </div>
-      </div>
-    </li>
-  ), [allMotherItemsMap, manager]);
+      );
+    },
+    [allMotherQuestsMap, manager]
+  );
+
+  const renderSessionCard = useCallback(
+    (s) => {
+      const mainMotherQuest = allMotherQuestsMap[s.motherQuestsFks[0]];
+      const progressMetricsName = mainMotherQuest?.progressMetricsName;
+      const progressMetricsValue = mainMotherQuest?.progressMetricsValue;
+      return (
+        <div
+          className="card"
+          onClick={() => setExpandedSessionId(s.id)}
+          style={{ cursor: "pointer" }}
+        >
+          <span className="card-text">
+            {s.name} 
+            {progressMetricsName && progressMetricsValue && (
+              <>
+                <span className="card-splitter">✦</span>
+                <span>{progressMetricsName}: {s.associatedProgress}/{progressMetricsValue}</span>
+              </>
+            )}
+            {s.start && s.end && (
+              <span className="countdown">
+                <manager.SessionCountdown start={s.start} end={s.end} />
+              </span>
+            )}
+          </span>
+          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
+        </div>
+      );
+    },
+    [allMotherQuestsMap, manager]
+  );
 
   return (
     <>
       <h2 style={{ marginBottom: "0.5rem" }}>Pending</h2>
-      {pendingItems.length === 0 && <p>No pending items. Add your next item!</p>}
+      {pendingSessions.length === 0 && (
+        <p>No pending sessions. Add your next session!</p>
+      )}
+
+
       <ul>
-        {pendingItems.map(q => renderItem(q))}
+        {pendingSessions.map((s) =>
+          expandedSessionId === s.id ? (
+            <li key={s.id} className="card-li">
+              {renderExpandedSessionCard(s)}
+            </li>
+          ) : (
+            <li key={s.id} className="card-li">
+              {renderSessionCard(s)}
+            </li>
+          )
+        )}
       </ul>
 
-      {(isEditingItem || isAddingItem) && <ItemForm />}
+
+      {/* <ul>
+        {pendingSessions.map(s => (
+          <li key={s.id} className="card-li">
+            {renderSessionCard(s)}
+          </li>
+        ))}
+      </ul>*/}
+
+      {isSessionInForm && <SessionForm />}
 
       <div className="row-buttons">
-        {!isAddingItem && !isEditingItem && (
-          <button className="button" onClick={() => setIsAddingItem(true)}>+ Add Item</button>
+        {!isSessionInForm && (
+          <button className="button" onClick={() => setSessionInForm(new Session())}>
+            + Add Session
+          </button>
         )}
-        <button className="button" onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}>
-          {isShowCompletedItems ? "Hide Completed Items" : "See Completed Items"}
+        <button className="button" onClick={() => setIsShowCompletedSessions(!isShowCompletedSessions)}>
+          {isShowCompletedSessions ? "Hide Completed Sessions" : "See Completed Sessions"}
         </button>
       </div>
 
-      {isShowCompletedItems && (
+      {isShowCompletedSessions && (
         <>
           <h2>Completed</h2>
           <ul>
-            {completedItems.map(q => renderItem(q))}
+            {completedSessions.map(s => (
+              <li key={s.id} className="card-li">
+                {renderSessionCard(s)}
+              </li>
+            ))}
           </ul>
         </>
       )}

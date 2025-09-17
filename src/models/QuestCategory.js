@@ -1,7 +1,7 @@
 export class QuestCategory {
    constructor({
      id = crypto.randomUUID(),
-     name,
+     name = "",
      desc = "",
    } = {}) {
      this.id = id;

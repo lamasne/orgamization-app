@@ -1,5 +1,5 @@
 import { Session } from "../models/Session";
-import { ItemRepository } from "./ItemRepository";
+import { CommonRepository } from "./CommonRepository";
 
 // Mapper
 export const SessionMapper = {
@@ -30,4 +30,4 @@ export const SessionMapper = {
 };
 
 // Repository
-export const SessionRepository = new ItemRepository("sessions", SessionMapper);
+export const SessionRepository = new CommonRepository("sessions", SessionMapper);

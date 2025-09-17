@@ -1,0 +1,80 @@
+import { useEffect } from "react";
+import { QuestRepository } from "../repositories/QuestRepository";
+import { questCategoryRepository } from "../repositories/QuestCategoryRepository";
+import useCommonTabManager from "./useCommonTabManager";
+
+export default function useQuestTabManager({ 
+   user, 
+   setPendingQuests, 
+   setCompletedQuests, 
+   allMotherQuestsMap, 
+   setAllMotherQuestsMap, 
+   allMotherCategoriesMap, 
+   setAllMotherCategoriesMap 
+}) {
+  
+  useEffect(() => {
+    if (!user) return;
+
+    async function attachProgress(quest) {
+      const progress = await quest.getCurrentProgress();
+      quest.currentProgress = progress; // preserve class methods
+      return quest;
+    }
+
+    async function withProgress(quests) {
+      return Promise.all(quests.map(attachProgress));
+  }
+
+  const unsubscribeQuests = QuestRepository.onFieldChange("userId", user.uid, async (quests) => {
+    const [pending, completed] = await Promise.all([
+      withProgress(quests.filter(q => !q.isDone)),
+      withProgress(quests.filter(q => q.isDone)),
+    ]);
+    setPendingQuests(pending);
+    setCompletedQuests(completed);
+  });
+
+  const updateItemsMap = (items, setAllItemsMap) => {
+    const updatedMap = {};
+    items.forEach(item => { updatedMap[item.id] = item; });
+    setAllItemsMap(updatedMap);
+  };
+
+  const unsubscribeMotherQuests = QuestRepository.onFieldChange("userId", user.uid, (quests) => {
+    updateItemsMap(quests, setAllMotherQuestsMap);
+  });
+
+  questCategoryRepository.findAllByUser(user.uid)
+    .then((categories) => updateItemsMap(categories, setAllMotherCategoriesMap));
+
+  return () => {
+    unsubscribeQuests();
+    unsubscribeMotherQuests();
+  };
+}, [user]);
+
+  const changeStatus = async (quest) => {
+    console.log("Request to change status of quest", quest.id, "by user", user.uid);
+    const updated = { ...quest, status: quest.isDone ? "pending" : "completed" };
+    await QuestRepository.save(user.uid, updated);
+  };
+
+  const save = async (quest) => {
+    await QuestRepository.save(user.uid, quest);
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("Are you sure? This action is irreversible.")) return;
+    await QuestRepository.deleteMany(user.uid, [id]);
+  };
+ 
+  const common = useCommonTabManager({ changeStatus, remove });
+
+  return {
+    save,
+    remove,
+    changeStatus,
+    ...common,
+  };
+}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, setDoc, doc } from "firebase/firestore";
-import { db } from "../config/firebase-config";
-import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
+import { questCategoryRepository } from "../repositories/QuestCategoryRepository";
+import { QuestCategory } from "../models/QuestCategory";
 
 const fundamentalCategoriesData = [
   { id: "1", name: "Source of income" },
@@ -22,17 +21,23 @@ const fundamentalCategoriesData = [
 //   }
 // };
 
-export default function InfoTab() {
+export default function InfoTab({user}) {
   const [categories, setCategories] = useState([]);
 
   useEffect(() => {
     const fetchOrPopulateCategories = async () => {
       try {
-        const categories = await QuestCategoryRepository.findAll();
+        const categories = await questCategoryRepository.findAll();
         if (categories.length === 0) {
-          console.log("Collection empty, creating default categories...");
+          const ok = window.confirm(
+            "Collection is empty. Do you want to create the default categories?"
+          );
+          if (!ok) return; // user cancelled
+        
+          console.log("Creating default categories...");
           for (const cat of fundamentalCategoriesData) {
-            await QuestCategoryRepository.save(cat);
+            const questCategory = new QuestCategory(cat);
+            await questCategoryRepository.save(user.uid, questCategory);
           }
           setCategories(fundamentalCategoriesData);
         } else {
@@ -44,7 +49,7 @@ export default function InfoTab() {
     };
 
     fetchOrPopulateCategories();
-  }, []);
+  }, [user]);
 
   return (
     <div className="p-6 max-w-3xl mx-auto">

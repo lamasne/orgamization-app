@@ -5,13 +5,13 @@ import { SessionRepository } from "../repositories/SessionRepository";
 export class Quest {
   constructor({ 
     id = crypto.randomUUID(),
-    userId,
+    userId = "",
     isSubQuest = false,
-    motherQuestsFks,
-    name,
-    deadline,
-    progressMetricsName = null,
-    progressMetricsValue = null,
+    motherQuestsFks = [],
+    name = "",
+    deadline = Date.now() + 24 * 60 * 60 * 1000,
+    progressMetricsName = "",
+    progressMetricsValue = 0,
     difficulty = 5,
     comment = "",
   } = {}) {
@@ -21,7 +21,7 @@ export class Quest {
     this.motherQuestsFks = motherQuestsFks;
     this.name = name;
     // set deadline to midnight today by default
-    this.deadline = deadline ? new Date(deadline) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    this.deadline = new Date(deadline);
     this.difficulty = difficulty; // scale of 1-10
     this.comment = comment;
     this.progressMetricsName = progressMetricsName;
@@ -29,7 +29,7 @@ export class Quest {
   }
 
   async getCurrentProgress() {
-    const sessions = await SessionRepository.findByField("userId", this.userId);
+    const sessions = await SessionRepository.findByUserAndField(this.userId, "userId", this.userId);
     const relevant_sessions = sessions.filter(
       s => (s.motherQuestsFKs || []).includes(this.id) && s.isDone
     );

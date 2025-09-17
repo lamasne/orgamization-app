@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import React from "react";
 import { Quest } from "../models/Quest";
-import useQuestTabManager from "../hooks/useQuestTabManager";
+import useQuestTabManager from "../hooks/useQuestTabManager.jsx";
 
 export default function QuestsTab({ user }) {
   const [pendingQuests, setPendingQuests] = useState([]);
@@ -11,7 +11,6 @@ export default function QuestsTab({ user }) {
   const isQuestInForm = questInForm !== null;
 
   const [expandedQuestId, setExpandedQuestId] = useState(null);
-
   const [isShowCompletedItems, setIsShowCompletedItems] = useState(false);
   const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
   const [allMotherCategoriesMap, setAllMotherCategoriesMap] = useState({});
@@ -26,51 +25,26 @@ export default function QuestsTab({ user }) {
     setAllMotherCategoriesMap,
   });
 
-  // template for new quest
-  const emptyQuest = new Quest({
-    id: null,
-    name: "",
-    motherQuestsFks: [],
-    isSubQuest: false,
-    progressMetricsName: "hoursSpent",
-    progressMetricsValue: "",
-    deadline: "",
-  });
-
   const QuestForm = () => {
-    const [name, setName] = useState(questInForm?.name || null);
+    const [name, setName] = useState(questInForm?.name || "");
     const [motherQuestsFks, setMotherQuestsFks] = useState(questInForm?.motherQuestsFks || []);
     const [isSubQuest, setIsSubQuest] = useState(questInForm?.isSubQuest || false);
-    let motherQuest = null;
+    let mainMotherQuest = null;
     if (motherQuestsFks?.length) {
       if (isSubQuest) {
-        motherQuest = allMotherQuestsMap[motherQuestsFks[0]] || null;
+        mainMotherQuest = allMotherQuestsMap[motherQuestsFks[0]] || null;
       }
       else {
-        motherQuest = allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
+        mainMotherQuest = allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
       }
     }
-    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName
-      || (isSubQuest ? motherQuest?.progressMetricsName : null)
-    );
-    const [progressMetricsValue, setProgressMetricsValue] = useState(
-      questInForm?.progressMetricsValue 
-      || (isSubQuest ? motherQuest?.progressMetricsValue : null)
-    );
+    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName || "");
+    const [progressMetricsValue, setProgressMetricsValue] = useState(questInForm?.progressMetricsValue || 0);
     const [deadline, setDeadline] = useState(
       questInForm?.deadline
         ? manager.toDateTimeLocalString(new Date(questInForm.deadline))
         : ""
     );
-
-    // console.log("Quest in form current data:", {
-    //   name,
-    //   motherQuestsFks,
-    //   isSubQuest,
-    //   progressMetricsName,
-    //   progressMetricsValue,
-    //   deadline,
-    // });
 
     const finishAddEdit = () => {
       setQuestInForm(null);
@@ -117,9 +91,9 @@ export default function QuestsTab({ user }) {
           onChange={(e) => setMotherQuestsFks(Array.from(e.target.selectedOptions, (o) => o.value))}
         >
           {isSubQuest ? (
-            Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
+            Object.entries(allMotherQuestsMap).map(([id, mainMotherQuest]) => (
               <option key={id} value={id}>
-                {motherQuest.name}
+                {mainMotherQuest.name}
               </option>
             ))
           ) : (
@@ -131,22 +105,24 @@ export default function QuestsTab({ user }) {
           )}
         </select>
 
-        {(!isSubQuest || !allMotherQuestsMap[motherQuestsFks[0]]?.progressMetricsName) && 
-          <input
-            type="text"
-            value={progressMetricsName}
-            onChange={(e) => setProgressMetricsName(e.target.value)}
-            placeholder="hoursSpent"
-          />
-        }
+        <input
+          type="text"
+          value={progressMetricsName}
+          onChange={(e) => setProgressMetricsName(e.target.value)}
+          placeholder={
+            isSubQuest 
+            ? (mainMotherQuest?.progressMetricsName || "hoursSpent") 
+            : "hoursSpent"
+          }
+        />
 
         <input
           type="number"
           value={progressMetricsValue}
           onChange={(e) => setProgressMetricsValue(e.target.value)}
           placeholder={
-            isSubQuest && motherQuest
-            ? `Choose a quantity of ${motherQuest.progressMetricsName} up to ${motherQuest.progressMetricsValue}`
+            isSubQuest && mainMotherQuest?.progressMetricsName == progressMetricsName
+            ? `Choose a quantity of ${progressMetricsName} up to ${mainMotherQuest.progressMetricsValue}`
             : `Choose a quantity of ${progressMetricsName}`
           }
         />
@@ -179,12 +155,8 @@ export default function QuestsTab({ user }) {
           style={{ cursor: "pointer" }}
         >
           <div>
-            <p>
-              <span className="card-splitter">✦</span>
-              {q.name}
-              <span className="card-splitter">✦</span>
-            </p>
-            <p>
+            <div className="card-title expanded-card-prop">{q.name}</div>
+            <div className="expanded-card-prop">
               Mother Quest:{" "}
               {q.motherQuestsFks?.length > 0
                 ? q.motherQuestsFks
@@ -195,22 +167,20 @@ export default function QuestsTab({ user }) {
                     )
                     .join(", ")
                 : "No mother items"}
-            </p>
-            <p>
-              Progress:{" "}
-              <em>
-                {/* useEffect could preload this, but you can also fetch inline */}
-                {/* Wrap in Suspense or prefetch in manager for better UX */}
-                {q.progressMetricsName && q.progressMetricsValue && (
-                  <>
-                    <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
-                  </>
-                )}
-              </em>
-            </p>
-            <p>Deadline: {manager.formatDate(q.deadline)}</p>
+            </div>
+            {q.progressMetricsName && q.progressMetricsValue && (
+              <div className="expanded-card-prop">
+                Progress:{" "}
+                <em>
+                  {/* useEffect could preload this, but you can also fetch inline */}
+                  {/* Wrap in Suspense or prefetch in manager for better UX */}
+                  <span>{q.progressMetricsName}: {q?.currentProgress}/{q.progressMetricsValue} </span>
+                </em>
+              </div>
+            )}
+            <div className="expanded-card-prop">Deadline: {manager.formatDate(q.deadline)}</div>
           </div>
-          {renderCardButtons(q)}
+          {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
         </div>
     );
     },
@@ -232,9 +202,11 @@ export default function QuestsTab({ user }) {
               <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
             </>
           )}
-          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
+          <span className="countdown">
+            <manager.Countdown deadline={q.deadline} />
+          </span>        
         </span>
-        {renderCardButtons(q)}
+        {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
       </div>
     ),
     [allMotherQuestsMap, allMotherCategoriesMap, manager]
@@ -253,41 +225,16 @@ export default function QuestsTab({ user }) {
               <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
             </>
           )}
-          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
+          <span className="countdown">
+            <manager.Countdown deadline={q.deadline} />
+          </span>            
         </span>
-        {renderCardButtons(q)}
+        {manager.renderCardButtons(q, { isFormOpen: isQuestInForm, setFormItem: setQuestInForm })}
       </div>
     ),
     [allMotherQuestsMap, allMotherCategoriesMap, manager]
   );
 
-  const renderCardButtons = useCallback(
-    (q) => (
-      <div className="card-buttons">
-        <button
-          className="card-button done"
-          onClick={() => manager.changeStatus(q)}
-        >
-          {q.done ? "Revert" : "Done"}
-        </button>
-        <button
-          className="card-button delete"
-          onClick={() => manager.remove(q.id)}
-        >
-          Delete
-        </button>
-        {!isQuestInForm && (
-          <button
-            className="card-button edit"
-            onClick={() => setQuestInForm(q)}
-          >
-            Edit
-          </button>
-        )}
-      </div>
-    ),
-    [manager]
-  );
 
 
   return (
@@ -326,8 +273,8 @@ export default function QuestsTab({ user }) {
 
       <div className="row-buttons">
         {!isQuestInForm && (
-          <button className="button" onClick={() => setQuestInForm(emptyQuest)}>
-            + Add Item
+          <button className="button" onClick={() => setQuestInForm(new Quest())}>
+            + Add Quest
           </button>
         )}
         <button

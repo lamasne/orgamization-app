@@ -1,6 +1,6 @@
 
 import { Quest } from "../models/Quest";
-import { ItemRepository } from "./ItemRepository";
+import { CommonRepository } from "./CommonRepository";
 
 // Mapper
 export const QuestMapper = {
@@ -36,4 +36,4 @@ export const QuestMapper = {
 };
 
 // Repository
-export const QuestRepository = new ItemRepository("quests", QuestMapper);
+export const QuestRepository = new CommonRepository("quests", QuestMapper);

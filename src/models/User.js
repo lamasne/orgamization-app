@@ -1,9 +1,9 @@
 export class User {
    constructor({
      uid = crypto.randomUUID(),
-     firstName,
-     lastName,
-     email,
+     firstName = "",
+     lastName = "",
+     email = "",
    } = {}) {
      this.uid = uid;
      this.firstName = firstName;

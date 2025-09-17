@@ -1,5 +1,4 @@
 import { QuestCategory } from "../models/QuestCategory";
-import { ItemRepository } from "./ItemRepository";
 
 // Mapper
 export const QuestCategoryMapper = {
@@ -9,11 +8,27 @@ export const QuestCategoryMapper = {
     desc: doc.desc,
   }),
   toDTO: (category) => ({
-    id: category.id,
+    id: category.id,  
     name: category.name,
     desc: category.desc,
   })
 };
 
 // Repository
-export const QuestCategoryRepository = new ItemRepository("questCategories", QuestCategoryMapper);
+import { CommonRepository } from "./CommonRepository";
+import { db } from "../config/firebase-config";
+import { collection, query, getDocs } from "firebase/firestore";
+
+class QuestCategoryRepository extends CommonRepository {
+  constructor() {
+    super("questCategories", QuestCategoryMapper);
+  }
+
+  async findAll() {
+    const q = query(collection(db, this.collectionName));
+    const snap = await getDocs(q);
+    return snap.docs.map(docSnap => this.mapper.fromDTO({ id: docSnap.id, ...docSnap.data() }));
+  }
+}
+
+export const questCategoryRepository = new QuestCategoryRepository();
