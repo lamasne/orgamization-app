@@ -1,118 +1,339 @@
-import { QuestRepository } from "../repositories/QuestRepository";
-import { QuestCategoryRepository } from "../repositories/QuestCategoryRepository";
-import { Quest } from "../models/Quest";
-import { QuestCategory } from "../models/QuestCategory";
 import { useState, useCallback } from "react";
-import useItemTabManager from "../hooks/useItemTabManager";
+import React from "react";
+import { Quest } from "../models/Quest";
+import useQuestTabManager from "../hooks/useQuestTabManager";
 
+export default function QuestsTab({ user }) {
+  const [pendingQuests, setPendingQuests] = useState([]);
+  const [completedQuests, setCompletedQuests] = useState([]);
 
-export default function QuestsTab({
-  user
-}) {
+  const [questInForm, setQuestInForm] = useState(null);
+  const isQuestInForm = questInForm !== null;
 
-  const motherItemVarName = "motherQuestsFks";
+  const [expandedQuestId, setExpandedQuestId] = useState(null);
 
-  const [pendingItems, setPendingItems] = useState([]);
-  const [completedItems, setCompletedItems] = useState([]);
-
-  const [itemBeingEdited, setItemBeingEdited] = useState(null);
-  const isEditingItem = itemBeingEdited !== null;
-  const [isAddingItem, setIsAddingItem] = useState(false);
   const [isShowCompletedItems, setIsShowCompletedItems] = useState(false);
-  const [allMotherItemsMap, setAllMotherItemsMap] = useState({});
+  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
+  const [allMotherCategoriesMap, setAllMotherCategoriesMap] = useState({});
 
-  const manager = useItemTabManager({
-    user, ItemRepository: QuestRepository, MotherItemModel: QuestCategory, MotherItemRepository: QuestCategoryRepository,
-    setPendingItems, setCompletedItems, allMotherItemsMap, setAllMotherItemsMap
+  const manager = useQuestTabManager({
+    user,
+    setPendingQuests,
+    setCompletedQuests,
+    allMotherQuestsMap,
+    setAllMotherQuestsMap,
+    allMotherCategoriesMap,
+    setAllMotherCategoriesMap,
   });
 
-  const ItemForm = () => {
-    const [name, setName] = useState(itemBeingEdited?.name || "");
-    const [motherItemsFks, setMotherItemsFks] = useState(itemBeingEdited?.[motherItemVarName] || []);
+  // template for new quest
+  const emptyQuest = new Quest({
+    id: null,
+    name: "",
+    motherQuestsFks: [],
+    isSubQuest: false,
+    progressMetricsName: "hoursSpent",
+    progressMetricsValue: "",
+    deadline: "",
+  });
+
+  const QuestForm = () => {
+    const [name, setName] = useState(questInForm?.name || null);
+    const [motherQuestsFks, setMotherQuestsFks] = useState(questInForm?.motherQuestsFks || []);
+    const [isSubQuest, setIsSubQuest] = useState(questInForm?.isSubQuest || false);
+    let motherQuest = null;
+    if (motherQuestsFks?.length) {
+      if (isSubQuest) {
+        motherQuest = allMotherQuestsMap[motherQuestsFks[0]] || null;
+      }
+      else {
+        motherQuest = allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
+      }
+    }
+    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName
+      || (isSubQuest ? motherQuest?.progressMetricsName : null)
+    );
+    const [progressMetricsValue, setProgressMetricsValue] = useState(
+      questInForm?.progressMetricsValue 
+      || (isSubQuest ? motherQuest?.progressMetricsValue : null)
+    );
+    const [deadline, setDeadline] = useState(
+      questInForm?.deadline
+        ? manager.toDateTimeLocalString(new Date(questInForm.deadline))
+        : ""
+    );
+
+    // console.log("Quest in form current data:", {
+    //   name,
+    //   motherQuestsFks,
+    //   isSubQuest,
+    //   progressMetricsName,
+    //   progressMetricsValue,
+    //   deadline,
+    // });
 
     const finishAddEdit = () => {
-      setIsAddingItem(false);
-      setItemBeingEdited(null);
+      setQuestInForm(null);
     };
 
     const handleSubmit = async (e) => {
       e.preventDefault();
-      const item = new Quest({ 
-        ...itemBeingEdited,
+      const item = new Quest({
+        ...(questInForm?.id !== null && { id: questInForm.id }),
         userId: user.uid,
-        name: name,
-        [motherItemVarName]: motherItemsFks,
-      })
-      QuestRepository.save(user.uid, item);
+        name,
+        motherQuestsFks,
+        isSubQuest,
+        progressMetricsName,
+        progressMetricsValue,
+        deadline,
+      });
+      await manager.save(item);
       finishAddEdit();
     };
 
-    return (
+    return questInForm ? (
       <form onSubmit={handleSubmit} className="form-card">
         <input
           type="text"
           value={name}
-          placeholder="Item name"
-          onChange={e => setName(e.target.value)}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Quest name"
           required
-          className="form-input"
         />
+
+        <label>
+          <input
+            type="checkbox"
+            checked={isSubQuest}
+            onChange={() => setIsSubQuest(!isSubQuest)}
+          />
+          Is subquest
+        </label>
+
         <select
           multiple
-          value={motherItemsFks}
-          onChange={e => setMotherItemsFks(Array.from(e.target.selectedOptions).map(o => o.value))}
-          required
-          className="form-select"
+          value={motherQuestsFks}
+          onChange={(e) => setMotherQuestsFks(Array.from(e.target.selectedOptions, (o) => o.value))}
         >
-          {Object.entries(allMotherItemsMap).map(([id, motherItem]) => (
-            <option key={id} value={id}>{motherItem.name}</option>
-          ))}
+          {isSubQuest ? (
+            Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
+              <option key={id} value={id}>
+                {motherQuest.name}
+              </option>
+            ))
+          ) : (
+            Object.entries(allMotherCategoriesMap).map(([id, motherCategory]) => (
+              <option key={id} value={id}>
+                {motherCategory.name}
+              </option>
+            ))
+          )}
         </select>
-        <button type="submit" className="button primary"> {itemBeingEdited ? "Save" : "Add"} </button>
-        <button type="button" className="button" onClick={finishAddEdit}>Cancel</button>
+
+        {(!isSubQuest || !allMotherQuestsMap[motherQuestsFks[0]]?.progressMetricsName) && 
+          <input
+            type="text"
+            value={progressMetricsName}
+            onChange={(e) => setProgressMetricsName(e.target.value)}
+            placeholder="hoursSpent"
+          />
+        }
+
+        <input
+          type="number"
+          value={progressMetricsValue}
+          onChange={(e) => setProgressMetricsValue(e.target.value)}
+          placeholder={
+            isSubQuest && motherQuest
+            ? `Choose a quantity of ${motherQuest.progressMetricsName} up to ${motherQuest.progressMetricsValue}`
+            : `Choose a quantity of ${progressMetricsName}`
+          }
+        />
+
+        <input
+          type="datetime-local"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+
+        <button type="submit" className="button primary">
+          {questInForm.id ? "Save changes" : "Add"}
+        </button>
+        <button type="button" className="button" onClick={finishAddEdit}>
+          Cancel
+        </button>
       </form>
+    ) : (
+      <p>No item in form</p>
     );
   };
 
-  const renderItem = useCallback((q) => (
-    <li key={q.id} className="card-li">
-      <div className="card">
+  const renderExpandedQuestCard = useCallback(
+    (q) => {
+
+      return (
+        <div
+          className="card"
+          onClick={() => setExpandedQuestId(null)}
+          style={{ cursor: "pointer" }}
+        >
+          <div>
+            <p>
+              <span className="card-splitter">✦</span>
+              {q.name}
+              <span className="card-splitter">✦</span>
+            </p>
+            <p>
+              Mother Quest:{" "}
+              {q.motherQuestsFks?.length > 0
+                ? q.motherQuestsFks
+                    .map((id) =>
+                      q.isSubQuest
+                        ? allMotherQuestsMap[id]?.name
+                        : allMotherCategoriesMap[id]?.name ?? id
+                    )
+                    .join(", ")
+                : "No mother items"}
+            </p>
+            <p>
+              Progress:{" "}
+              <em>
+                {/* useEffect could preload this, but you can also fetch inline */}
+                {/* Wrap in Suspense or prefetch in manager for better UX */}
+                {q.progressMetricsName && q.progressMetricsValue && (
+                  <>
+                    <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+                  </>
+                )}
+              </em>
+            </p>
+            <p>Deadline: {manager.formatDate(q.deadline)}</p>
+          </div>
+          {renderCardButtons(q)}
+        </div>
+    );
+    },
+    [allMotherQuestsMap, allMotherCategoriesMap, manager]
+  );
+
+  const renderQuestCard = useCallback(
+    (q) => (
+      <div
+        className="card"
+        onClick={() => setExpandedQuestId(q.id)}
+        style={{ cursor: "pointer" }}
+      >
         <span className="card-text">
           {q.name}
-          <span className="card-splitter">✦</span>
-          {q[motherItemVarName]?.length > 0
-            ? q[motherItemVarName]
-                .map(id => allMotherItemsMap[id]?.name ?? id)
-                .join(", ")
-            : "No mother items"
-          }
-        </span>
-        <div className="card-buttons">
-          <button className="card-button done" onClick={() => manager.changeStatus(q)}>{q.done ? "Revert" : "Done"}</button>
-          <button className="card-button delete" onClick={() => manager.remove(q.id)}>Delete</button>
-          {!isEditingItem && !isAddingItem && (
-            <button className="card-button edit" onClick={() => setItemBeingEdited(q)}>Edit</button>
+          {q.progressMetricsName && q.progressMetricsValue && (
+            <>
+              <span className="card-splitter">✦</span>
+              <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+            </>
           )}
-        </div>
+          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
+        </span>
+        {renderCardButtons(q)}
       </div>
-    </li>
-  ), [allMotherItemsMap, manager]);
+    ),
+    [allMotherQuestsMap, allMotherCategoriesMap, manager]
+  );
+
+  const renderSubQuestCard = useCallback(
+    (q) => (
+      <div
+        className="sub-card"
+      >
+        <span className="card-text">
+          {q.name}
+          {q.progressMetricsName && q.progressMetricsValue && (
+            <>
+              <span className="card-splitter">✦</span>
+              <span>{q.progressMetricsName}: {q.currentProgress}/{q.progressMetricsValue}</span>
+            </>
+          )}
+          <span className="countdown">time left: {manager.getCountDown(q.deadline)}</span>            
+        </span>
+        {renderCardButtons(q)}
+      </div>
+    ),
+    [allMotherQuestsMap, allMotherCategoriesMap, manager]
+  );
+
+  const renderCardButtons = useCallback(
+    (q) => (
+      <div className="card-buttons">
+        <button
+          className="card-button done"
+          onClick={() => manager.changeStatus(q)}
+        >
+          {q.done ? "Revert" : "Done"}
+        </button>
+        <button
+          className="card-button delete"
+          onClick={() => manager.remove(q.id)}
+        >
+          Delete
+        </button>
+        {!isQuestInForm && (
+          <button
+            className="card-button edit"
+            onClick={() => setQuestInForm(q)}
+          >
+            Edit
+          </button>
+        )}
+      </div>
+    ),
+    [manager]
+  );
+
 
   return (
     <>
       <h2 style={{ marginBottom: "0.5rem" }}>Pending</h2>
-      {pendingItems.length === 0 && <p>No pending items. Add your next item!</p>}
+      {pendingQuests.length === 0 && (
+        <p>No pending quests. Add your next quest!</p>
+      )}
       <ul>
-        {pendingItems.map(q => renderItem(q))}
+        {pendingQuests.map((q) =>
+          !q.isSubQuest ? (
+            expandedQuestId === q.id ? (
+              <li key={q.id} className="card-li">
+                {renderExpandedQuestCard(q)}
+                <ul className="sub-quests">
+                  {pendingQuests
+                    .filter(subQuest => subQuest.motherQuestsFks.includes(q.id))
+                    .map(subQuest => (
+                      <li key={subQuest.id}>
+                        {renderSubQuestCard(subQuest)}
+                      </li>
+                    ))}
+                </ul>
+              </li>
+            ) : (
+              <li key={q.id} className="card-li">
+                {renderQuestCard(q)}
+              </li>
+            )
+          ) : null
+        )}
       </ul>
 
-      {(isEditingItem || isAddingItem) && <ItemForm />}
+
+      {isQuestInForm && <QuestForm/>}
 
       <div className="row-buttons">
-        {!isAddingItem && !isEditingItem && (
-          <button className="button" onClick={() => setIsAddingItem(true)}>+ Add Item</button>
+        {!isQuestInForm && (
+          <button className="button" onClick={() => setQuestInForm(emptyQuest)}>
+            + Add Item
+          </button>
         )}
-        <button className="button" onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}>
+        <button
+          className="button"
+          onClick={() => setIsShowCompletedItems(!isShowCompletedItems)}
+        >
           {isShowCompletedItems ? "Hide Completed Items" : "See Completed Items"}
         </button>
       </div>
@@ -121,7 +342,11 @@ export default function QuestsTab({
         <>
           <h2>Completed</h2>
           <ul>
-            {completedItems.map(q => renderItem(q))}
+            {completedQuests.map((q) => (
+              <li key={q.id} className="card-li">
+                {renderQuestCard(q)}
+              </li>
+            ))}
           </ul>
         </>
       )}

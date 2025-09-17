@@ -10,7 +10,7 @@ export class Quest {
     motherQuestsFks,
     name,
     deadline,
-    progressMetricsName = "hoursSpent",
+    progressMetricsName = null,
     progressMetricsValue = null,
     difficulty = 5,
     comment = "",
