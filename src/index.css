@@ -132,19 +132,26 @@ button.primary:hover, .tab-buttons button.active:hover {
 }
 
 /* ===== ITEM CARDS ===== */
+
+ul {
+  padding-left: 0;   /* remove browser default */
+  margin: 0;         /* optional: reset margin */
+}
+
 .card {
   display: flex;
   justify-content: space-between;
   align-items: center;
 
+  width: 98%;             /* take almost all available width */
   max-width: 1000px; /* fixed width for all cards */
-  margin: 0 auto 1rem auto; /* centered with spacing */
-  padding: 0.6rem 0.8rem;
-  gap: 1rem;
+  margin: 0 auto 0.5rem auto; /* centered with spacing */
+  padding: 0.4rem 0.5rem;
+  gap: 0.5rem;
 
   background: var(--fg);
-  border: 5px solid var(--gold);
-  border-radius: 20px;
+  border: 3px solid var(--gold);
+  border-radius: 15px;
   box-shadow: 0 4px 10px rgba(0,0,0,0.25);
   
   color: var(--bg);
@@ -159,7 +166,6 @@ button.primary:hover, .tab-buttons button.active:hover {
 .card-splitter {
   margin: 0 0.75rem;
   vertical-align: middle;
-  /* font-size: 2em; */
   color: var(--gold);
   text-shadow: 0 0 1px var(--bg), 0 0 2px #fff;
   position: relative;
@@ -168,12 +174,12 @@ button.primary:hover, .tab-buttons button.active:hover {
 /* Buttons inside cards */
 .card-buttons {
   display: flex;
-  gap: 0.3rem;
+  gap: 0.2rem;
   flex-wrap: wrap;
 }
 
 .card-button {
-  padding: 0.5rem 0.8rem;
+  padding: 0.3rem 0.4rem;
   color: #fff;
   border: none;
   cursor: pointer;
@@ -221,8 +227,6 @@ button.primary:hover, .tab-buttons button.active:hover {
   padding-bottom: 0.3rem;
   margin-bottom: 0.6rem;
   position: relative;
-  font-size: 1.3em;
-  /* font-weight: bold;  */
 }
 
 .card-title::after {
@@ -231,7 +235,7 @@ button.primary:hover, .tab-buttons button.active:hover {
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 4px;
+  height: 2px;
   background: var(--gold);
   box-shadow: 0 0 1px var(--bg), 0 0 2px #fff;
 }

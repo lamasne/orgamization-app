@@ -14,7 +14,7 @@ export default function useCommonTabManager({ changeStatus, remove }) {
             changeStatus(item);
             }}
          >
-            {item.isDone ? "Revert" : "Done"}
+            {item.isDone ? "\u21A9" : "\u2713"}
          </button>
          <button
             className="card-button delete"
@@ -23,7 +23,7 @@ export default function useCommonTabManager({ changeStatus, remove }) {
             remove(item.id);
             }}
          >
-            Delete
+            {"\u2717"}
          </button>
          {!isFormOpen && (
             <button
@@ -33,7 +33,7 @@ export default function useCommonTabManager({ changeStatus, remove }) {
                setFormItem(item);
             }}
             >
-            Edit
+            {"\u270E"}
             </button>
          )}
       </div>
