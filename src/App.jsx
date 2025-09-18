@@ -4,6 +4,7 @@ import { useAuth } from "./hooks/useAuth";
 import SessionsTab from "./components/SessionsTab";
 import QuestsTab from "./components/QuestsTab";
 import InfoTab from "./components/InfoTab";
+import CalendarTab from "./components/CalendarTab";
 
 import { SessionRepository } from "./repositories/SessionRepository";
 
@@ -20,6 +21,7 @@ function App() {
   const sessionsTabName = "activity"
   const questsTabName = "quests"
   const infoTabName = "info"
+  const calendarTabName = "calendar"
 
   const { user, loading, signInWithGoogle, logout } = useAuth();
 
@@ -41,7 +43,7 @@ function App() {
   if (loading) return <p>Loading...</p>;
 
   return (
-    <div style={{ padding: "2rem"}}>
+    <div style={{ padding: "0.5rem"}}>
       {!user ?
         <div className="center-screen">
           <button onClick={signInWithGoogle}>Sign In With Google</button>
@@ -68,7 +70,7 @@ function App() {
             />
           </div>
           <div className="tab-buttons">
-            {[sessionsTabName, questsTabName, infoTabName].map((tabName) => (
+            {[sessionsTabName, questsTabName, infoTabName, calendarTabName].map((tabName) => (
               <button
                 key={tabName}
                 className={activeTab === tabName ? "active" : ""}
@@ -80,6 +82,11 @@ function App() {
           </div>
 
           <div style={{ marginTop: "1rem" }}>
+            {activeTab === "calendar" && (
+              <CalendarTab
+                user={user}
+              />
+            )}
             {activeTab === sessionsTabName && (
               <SessionsTab
                 user={user}
