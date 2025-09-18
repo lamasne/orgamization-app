@@ -45,8 +45,14 @@ export default function useQuestTabManager({
     updateItemsMap(quests, setAllMotherQuestsMap);
   });
 
-  questCategoryRepository.findAllByUser(user.uid)
-    .then((categories) => updateItemsMap(categories, setAllMotherCategoriesMap));
+  questCategoryRepository.findAll()
+  .then((categories) => {
+    updateItemsMap(categories, setAllMotherCategoriesMap);
+  })
+  .catch((err) => {
+    console.error("Error fetching categories", err);
+  });
+
 
   return () => {
     unsubscribeQuests();
