@@ -1,33 +1,23 @@
 import { SessionRepository } from "../repositories/SessionRepository";
-import { QuestRepository } from "../repositories/QuestRepository";
 import { Session } from "../models/Session";
-import { Quest } from "../models/Quest";
 import { useState, useCallback } from "react";
 import useSessionTabManager from "../hooks/useSessionTabManager";
+import useGoogleCalendarManager from "../hooks/useGoogleCalendarManager.jsx";
+
 
 export default function SessionsTab({user}) {
-  const [pendingSessions, setPendingSessions] = useState([]);
-  const [completedSessions, setCompletedSessions] = useState([]);
-
   const [sessionInForm, setSessionInForm] = useState(null);
   const isSessionInForm = sessionInForm !== null;
-
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [isShowCompletedSessions, setIsShowCompletedSessions] = useState(false);
-  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
 
-  const manager = useSessionTabManager({
-    user,
-    setPendingSessions,
-    setCompletedSessions,
-    allMotherQuestsMap,
-    setAllMotherQuestsMap
-  });
+  const manager = useSessionTabManager();
+  const googleCalendarManager = useGoogleCalendarManager();
   
   const SessionForm = () => {
     const [name, setName] = useState(sessionInForm?.name || "");
     const [motherQuestsFks, setMotherQuestsFks] = useState(sessionInForm?.motherQuestsFks || []);
-    const mainMotherQuest = allMotherQuestsMap[motherQuestsFks[0]];
+    const mainMotherQuest = manager.allMotherQuestsMap[motherQuestsFks[0]];
     const [associatedProgress, setAssociatedProgress] = useState(sessionInForm?.associatedProgress || 0);
     const [start, setStart] = useState(sessionInForm?.start || "");
     const [end, setEnd] = useState(sessionInForm?.end || "");
@@ -69,7 +59,7 @@ export default function SessionsTab({user}) {
           required
           className="form-select"
         >
-          {Object.entries(allMotherQuestsMap).map(([id, motherQuest]) => (
+          {Object.entries(manager.allMotherQuestsMap).map(([id, motherQuest]) => (
             <option key={id} value={id}>{motherQuest.name}</option>
           ))}
         </select>
@@ -113,7 +103,7 @@ export default function SessionsTab({user}) {
   const renderExpandedSessionCard = useCallback(
     (s) => {
       const mainMotherQuest = s.motherQuestsFks?.length
-        ? allMotherQuestsMap[s.motherQuestsFks[0]]
+        ? manager.allMotherQuestsMap[s.motherQuestsFks[0]]
         : null;
   
       return (
@@ -128,7 +118,7 @@ export default function SessionsTab({user}) {
               Mother Quest:{" "}
               {s.motherQuestsFks?.length > 0
                 ? s.motherQuestsFks
-                    .map((id) => allMotherQuestsMap[id]?.name ?? id)
+                    .map((id) => manager.allMotherQuestsMap[id]?.name ?? id)
                     .join(", ")
                 : "No mother items"}
             </div>
@@ -148,12 +138,12 @@ export default function SessionsTab({user}) {
         </div>
       );
     },
-    [allMotherQuestsMap, manager]
+    [manager]
   );
 
   const renderSessionCard = useCallback(
     (s) => {
-      const mainMotherQuest = allMotherQuestsMap[s.motherQuestsFks[0]];
+      const mainMotherQuest = manager.allMotherQuestsMap[s.motherQuestsFks[0]];
       const progressMetricsName = mainMotherQuest?.progressMetricsName;
       const progressMetricsValue = mainMotherQuest?.progressMetricsValue;
       return (
@@ -180,19 +170,19 @@ export default function SessionsTab({user}) {
         </div>
       );
     },
-    [allMotherQuestsMap, manager]
+    [manager]
   );
 
   return (
     <>
       <h2 style={{ marginBottom: "0.5rem" }}>Pending</h2>
-      {pendingSessions.length === 0 && (
+      {manager.pendingSessions.length === 0 && (
         <p>No pending sessions. Add your next session!</p>
       )}
 
 
       <ul>
-        {pendingSessions.map((s) =>
+        {manager.pendingSessions.map((s) =>
           expandedSessionId === s.id ? (
             <li key={s.id} className="card-li">
               {renderExpandedSessionCard(s)}
@@ -231,7 +221,7 @@ export default function SessionsTab({user}) {
         <>
           <h2>Completed</h2>
           <ul>
-            {completedSessions.map(s => (
+            {manager.completedSessions.map(s => (
               <li key={s.id} className="card-li">
                 {renderSessionCard(s)}
               </li>
@@ -239,6 +229,21 @@ export default function SessionsTab({user}) {
           </ul>
         </>
       )}
+      <h2>Google Calendar</h2>
+      {/* <iframe 
+        src={`https://calendar.google.com/calendar/embed?src=${user.email}&ctz=Europe%2FBrussels&mode=WEEK&showPrint=0`} 
+        style={{ border: 0, width: "100%", height: "80vh" }}
+      ></iframe> */}
+      <div>
+      <button onClick={googleCalendarManager.fetchEvents}>Fetch Google Calendar events</button>
+      <ul>
+          {googleCalendarManager.googleEvents.map((ev) => (
+            <li key={ev.id}>
+              {ev.summary} — {ev.start.dateTime || ev.start.date}
+            </li>
+          ))}
+        </ul>
+      </div>
     </>
   );
 }

@@ -2,16 +2,18 @@ import { useEffect } from "react";
 import { QuestRepository } from "../repositories/QuestRepository";
 import { questCategoryRepository } from "../repositories/QuestCategoryRepository";
 import useCommonTabManager from "./useCommonTabManager";
+import { getAuth } from "firebase/auth";
+import { useState } from "react";
 
-export default function useQuestTabManager({ 
-   user, 
-   setPendingQuests, 
-   setCompletedQuests, 
-   allMotherQuestsMap, 
-   setAllMotherQuestsMap, 
-   allMotherCategoriesMap, 
-   setAllMotherCategoriesMap 
-}) {
+export default function useQuestTabManager() {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  const [pendingQuests, setPendingQuests] = useState([]);
+  const [completedQuests, setCompletedQuests] = useState([]);
+  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
+  const [allMotherCategoriesMap, setAllMotherCategoriesMap] = useState({});
+  const [expandedQuestIds, setExpandedQuestIds] = useState([]);
   
   useEffect(() => {
     if (!user) return;
@@ -74,13 +76,25 @@ export default function useQuestTabManager({
     if (!window.confirm("Are you sure? This action is irreversible.")) return;
     await QuestRepository.deleteMany(user.uid, [id]);
   };
+
+  function toggleExpand(qid) {
+    setExpandedQuestIds(prev =>
+      prev.includes(qid) ? prev.filter(id => id !== qid) : [...prev, qid]
+    );
+  }  
  
   const common = useCommonTabManager({ changeStatus, remove });
 
   return {
+    pendingQuests,
+    completedQuests,
+    allMotherQuestsMap,
+    allMotherCategoriesMap,
+    expandedQuestIds,
     save,
     remove,
     changeStatus,
+    toggleExpand,
     ...common,
   };
 }

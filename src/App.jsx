@@ -4,7 +4,7 @@ import { useAuth } from "./hooks/useAuth";
 import SessionsTab from "./components/SessionsTab";
 import QuestsTab from "./components/QuestsTab";
 import InfoTab from "./components/InfoTab";
-import CalendarTab from "./components/CalendarTab";
+import CustomCalendar from "./components/CustomCalendar";
 
 import { SessionRepository } from "./repositories/SessionRepository";
 
@@ -83,7 +83,7 @@ function App() {
 
           <div style={{ marginTop: "1rem" }}>
             {activeTab === "calendar" && (
-              <CalendarTab
+              <CustomCalendar
                 user={user}
               />
             )}

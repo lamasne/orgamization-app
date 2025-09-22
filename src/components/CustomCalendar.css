@@ -1,0 +1,43 @@
+.calendar-container {
+   display: flex;
+   gap: 1rem;
+ }
+ 
+ .calendar-day {
+   flex: 1;
+   border: 1px solid #ccc;
+   background-color: #f0f0f0;
+   padding: 0.5rem;
+   color: #333;
+ }
+ 
+ .calendar-day-title {
+   text-align: center;
+   margin: 0.25rem 0 0.5rem;
+ }
+ 
+ .calendar-grid {
+   position: relative;
+ }
+ 
+ .calendar-hour {
+   height: 40px;
+   border-top: 1px solid #ccc;
+   cursor: pointer;
+   font-size: 0.8rem;
+   padding-left: 4px;
+ }
+ 
+ .calendar-session {
+   position: absolute;
+   left: 5%;
+   width: 90%;
+   background: rgba(100, 150, 255, 0.6);
+   border: 1px solid #3366ff;
+   border-radius: 6px;
+   pointer-events: none;
+   padding: 2px 4px;
+   font-size: 0.75rem;
+   box-sizing: border-box;
+ }
+ 

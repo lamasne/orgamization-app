@@ -142,7 +142,7 @@ ul {
   justify-content: space-between;
   align-items: center;
 
-  width: 98%;             /* take almost all available width */
+  width: 95%;             /* take almost all available width */
   max-width: 1000px; /* fixed width for all cards */
   margin: 0 auto 0.5rem auto; /* centered with spacing */
   padding: 0.4rem 0.5rem;
@@ -244,7 +244,7 @@ ul {
 
 /* ===== SUB QUEST CARD ===== */
 /* Nested list for subquests */
-.sub-quests {
+.sub-quest {
   list-style: none;   /* remove default bullets */
   margin: 0 0 0 50px; /* indent whole list relative to parent */
   padding: 0;

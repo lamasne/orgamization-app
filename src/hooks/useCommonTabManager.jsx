@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { format, isSameDay, isSameMonth, isSameYear } from "date-fns";
 
-export default function useCommonTabManager({ changeStatus, remove }) {
+export default function useCommonTabManager({ changeStatus, remove } = {}) {
 
   // Card buttons component
   const renderCardButtons = useCallback(
@@ -96,7 +96,14 @@ export default function useCommonTabManager({ changeStatus, remove }) {
       const now = new Date();
 
       const showYear = d.getFullYear() !== now.getFullYear();
-      const fmt = `d MMM${showYear ? " yyyy" : ""} HH:mm`;
+
+      let fmt;
+      if (d.getHours() === 0 && d.getMinutes() === 0) {
+         fmt = `d MMM${showYear ? " yyyy" : ""}`;
+      }
+      else {
+         fmt = `d MMM${showYear ? " yyyy" : ""}, HH:mm`;
+      }
 
       return format(d, fmt);
    }
@@ -110,28 +117,29 @@ export default function useCommonTabManager({ changeStatus, remove }) {
    const now = new Date();
  
    const showYearStart = s.getFullYear() !== now.getFullYear();
-   const showYearEnd = e.getFullYear() !== now.getFullYear();
  
+   let fmt2;
    if (isSameDay(s, e)) {
      // same day → show full date once, then only time for end
-     const fmt = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
-     return `${format(s, fmt)} - ${format(e, "HH:mm")}`;
+     fmt2 = "HH:mm";
    }
  
-   if (isSameMonth(s, e)) {
+   else if (isSameMonth(s, e)) {
      // same month → repeat day + time, year only if different from current
-     const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
-     return `${format(s, fmtStart)} - ${format(e, "d HH:mm")}`;
+     fmt2 = "d HH:mm";
    }
  
-   if (isSameYear(s, e)) {
+   else if (isSameYear(s, e)) {
      // same year, different month
-     const fmtStart = `d MMM${showYearStart ? " yyyy" : ""} HH:mm`;
-     return `${format(s, fmtStart)} - ${format(e, "d MMM HH:mm")}`;
+     fmt2 = "d MMM, HH:mm";
    }
  
-   // different years
-   return `${format(s, "d MMM yyyy HH:mm")} - ${format(e, "d MMM yyyy HH:mm")}`;
+   else {
+     // different years
+     fmt2 = `d MMM yyyy, HH:mm`;
+   }
+
+   return `${formatDate(s)} - ${format(e, fmt2)}`;
  }
 
   return {

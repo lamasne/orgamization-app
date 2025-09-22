@@ -1,15 +1,16 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import useCommonTabManager from "./useCommonTabManager";
 import { SessionRepository } from "../repositories/SessionRepository";
 import { QuestRepository } from "../repositories/QuestRepository";
+import { getAuth } from "firebase/auth";
 
-export default function useSessionTabManager({ 
-  user, 
-  setPendingSessions, 
-  setCompletedSessions, 
-  allMotherQuestsMap, 
-  setAllMotherQuestsMap, 
-}) {
+export default function useSessionTabManager() {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  const [pendingSessions, setPendingSessions] = useState([]);
+  const [completedSessions, setCompletedSessions] = useState([]);
+  const [allMotherQuestsMap, setAllMotherQuestsMap] = useState({});
   
   useEffect(() => {
     if (!user) return;
@@ -56,6 +57,9 @@ export default function useSessionTabManager({
   const common = useCommonTabManager({ changeStatus, remove });
 
   return {
+    pendingSessions,
+    completedSessions,
+    allMotherQuestsMap,
     changeStatus,
     remove,
     ...common,
