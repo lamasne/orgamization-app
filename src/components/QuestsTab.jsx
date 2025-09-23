@@ -12,6 +12,130 @@ export default function QuestsTab({ user }) {
   const manager = useQuestTabManager();
 
   // ------------------------
+  // QUEST FORM
+  // ------------------------
+
+  const QuestForm = () => {
+    const [name, setName] = useState(questInForm?.name || "");
+    const [motherQuestsFks, setMotherQuestsFks] = useState(questInForm?.motherQuestsFks || []);
+    const [isSubQuest, setIsSubQuest] = useState(questInForm?.isSubQuest || false);
+    let mainMotherQuest = null;
+    if (motherQuestsFks?.length) {
+      if (isSubQuest) {
+        mainMotherQuest = manager.allMotherQuestsMap[motherQuestsFks[0]] || null;
+      }
+      else {
+        mainMotherQuest = manager.allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
+      }
+    }
+    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName || "");
+    const [progressMetricsValue, setProgressMetricsValue] = useState(questInForm?.progressMetricsValue || 0);
+    const [deadline, setDeadline] = useState(
+      questInForm?.deadline
+        ? manager.toDateTimeLocalString(new Date(questInForm.deadline))
+        : ""
+    );
+
+    const finishAddEdit = () => {
+      setQuestInForm(null);
+    };
+
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      const item = new Quest({
+        ...(questInForm?.id !== null && { id: questInForm.id }),
+        userId: user.uid,
+        name,
+        motherQuestsFks,
+        isSubQuest,
+        progressMetricsName,
+        progressMetricsValue,
+        deadline,
+      });
+      await manager.save(item);
+      finishAddEdit();
+    };
+
+    return questInForm ? (
+      <form onSubmit={handleSubmit} className="form-card">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Quest name"
+          required
+        />
+
+        <label>
+          <input
+            type="checkbox"
+            checked={isSubQuest}
+            onChange={() => setIsSubQuest(!isSubQuest)}
+          />
+          Is subquest
+        </label>
+
+        <select
+          multiple
+          value={motherQuestsFks}
+          onChange={(e) => setMotherQuestsFks(Array.from(e.target.selectedOptions, (o) => o.value))}
+        >
+          {isSubQuest ? (
+            Object.entries(manager.allMotherQuestsMap).map(([id, mainMotherQuest]) => (
+              <option key={id} value={id}>
+                {mainMotherQuest.name}
+              </option>
+            ))
+          ) : (
+            Object.entries(manager.allMotherCategoriesMap).map(([id, motherCategory]) => (
+              <option key={id} value={id}>
+                {motherCategory.name}
+              </option>
+            ))
+          )}
+        </select>
+
+        <input
+          type="text"
+          value={progressMetricsName}
+          onChange={(e) => setProgressMetricsName(e.target.value)}
+          placeholder={
+            isSubQuest 
+            ? (mainMotherQuest?.progressMetricsName || "hoursSpent") 
+            : "hoursSpent"
+          }
+        />
+
+        <input
+          type="number"
+          value={progressMetricsValue}
+          onChange={(e) => setProgressMetricsValue(e.target.value)}
+          placeholder={
+            isSubQuest && mainMotherQuest?.progressMetricsName == progressMetricsName
+            ? `Choose a quantity of ${progressMetricsName} up to ${mainMotherQuest.progressMetricsValue}`
+            : `Choose a quantity of ${progressMetricsName}`
+          }
+        />
+
+        <input
+          type="datetime-local"
+          value={deadline}
+          onChange={(e) => setDeadline(e.target.value)}
+        />
+
+        <button type="submit" className="button primary">
+          {questInForm.id ? "Save changes" : "Add"}
+        </button>
+        <button type="button" className="button" onClick={finishAddEdit}>
+          Cancel
+        </button>
+      </form>
+    ) : (
+      <p>No item in form</p>
+    );
+  };
+
+  // ------------------------
   // RENDER HELPERS
   // ------------------------
   const renderExpandedQuestCard = useCallback(
@@ -23,18 +147,26 @@ export default function QuestsTab({ user }) {
       >
         <div>
           <div className="card-title expanded-card-prop">{q.name}</div>
-          <div className="expanded-card-prop">
-            Mother Quest:{" "}
-            {q.motherQuestsFks?.length > 0
-              ? q.motherQuestsFks
-                  .map((id) =>
-                    q.isSubQuest
-                      ? manager.allMotherQuestsMap[id]?.name
-                      : manager.allMotherCategoriesMap[id]?.name ?? id
-                  )
-                  .join(", ")
-              : "No mother items"}
-          </div>
+          {!q.isSubQuest ? (
+            <div className="expanded-card-prop">
+              Mother Quest:{" "}
+              {q.motherQuestsFks?.length > 0
+                ? q.motherQuestsFks
+                    .map((id) => manager.allMotherCategoriesMap[id]?.name ?? id)
+                    .join(", ")
+                : "No mother items"}
+            </div>
+          ) : (
+            q.motherQuestsFks?.length > 1 && (
+              <div className="expanded-card-prop">
+                Mother Quests:{" "}
+                {q.motherQuestsFks
+                  .map((id) => manager.allMotherQuestsMap[id]?.name ?? id)
+                  .join(", ")}
+              </div>
+            )
+          )}
+
           {q.progressMetricsName && q.progressMetricsValue && (
             <div className="expanded-card-prop">
               Progress:{" "}
@@ -126,7 +258,7 @@ export default function QuestsTab({ user }) {
         </ul>
       )}
 
-      {isQuestInForm && <p>Quest Form TODO</p>}
+      {isQuestInForm && <QuestForm/>}
 
       <div className="row-buttons">
         {!isQuestInForm && (
