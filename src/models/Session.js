@@ -6,6 +6,7 @@ export class Session {
 
    constructor({
      id = crypto.randomUUID(),
+     googleEventId = null,
      userId = "",
      name = "",
      motherQuestsFks = [],
@@ -17,6 +18,7 @@ export class Session {
      comment = "",
    } = {}) {
      this.id = id;
+     this.googleEventId = googleEventId;
      this.userId = userId;
      this.name = name;
      this.motherQuestsFks = motherQuestsFks;

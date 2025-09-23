@@ -5,6 +5,7 @@ import { CommonRepository } from "./CommonRepository";
 export const SessionMapper = {
   fromDTO: (doc) => new Session({ 
     id: doc.id,
+    googleEventId: doc.googleEventId,
     userId: doc.userId,
     name: doc.name,
     motherQuestsFks: doc.motherQuestsFks,
@@ -17,6 +18,7 @@ export const SessionMapper = {
   }),
   toDTO: (session) => ({
     id: session.id,
+    googleEventId: session.googleEventId,
     userId: session.userId,
     name: session.name,
     motherQuestsFks: session.motherQuestsFks,

@@ -6,8 +6,10 @@ import useGoogleCalendarManager from "../hooks/useGoogleCalendarManager.jsx";
 
 
 export default function SessionsTab({user}) {
+
+  const numberEventsToFetch = 5;
+
   const [sessionInForm, setSessionInForm] = useState(null);
-  const isSessionInForm = sessionInForm !== null;
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [isShowCompletedSessions, setIsShowCompletedSessions] = useState(false);
 
@@ -100,119 +102,114 @@ export default function SessionsTab({user}) {
     );
   };
 
-  const renderExpandedSessionCard = useCallback(
-    (s) => {
-      const mainMotherQuest = s.motherQuestsFks?.length
-        ? manager.allMotherQuestsMap[s.motherQuestsFks[0]]
-        : null;
+  const renderSessionCard = (s, expanded = false) => {
+    const mainMotherQuest = s.motherQuestsFks?.length
+      ? manager.allMotherQuestsMap[s.motherQuestsFks[0]]
+      : null;
   
-      return (
-        <div
-          className="card"
-          onClick={() => setExpandedSessionId(null)}
-          style={{ cursor: "pointer" }}
-        >
+    return (
+      <div
+        className="card"
+        onClick={() =>
+          setExpandedSessionId(expanded ? null : s.id)
+        }
+        style={{ cursor: "pointer" }}
+      >
+        {expanded ? (
           <div>
             <div className="card-title expanded-card-prop">{s.name}</div>
             <div className="expanded-card-prop">
               Mother Quest:{" "}
-              {s.motherQuestsFks?.length > 0
+              {s.motherQuestsFks?.length
                 ? s.motherQuestsFks
                     .map((id) => manager.allMotherQuestsMap[id]?.name ?? id)
                     .join(", ")
                 : "No mother items"}
             </div>
-            {mainMotherQuest.progressMetricsName && mainMotherQuest.progressMetricsValue && (
-              <div className="expanded-card-prop">
-                Reward:{" "}
-                {/* useEffect could preload this, but you can also fetch inline */}
-                {/* Wrap in Suspense or prefetch in manager for better UX */}                  
-                {s?.associatedProgress || "?"} {mainMotherQuest.progressMetricsName} out of {mainMotherQuest.progressMetricsValue}
-              </div>
-            )}
+            {mainMotherQuest?.progressMetricsName &&
+              mainMotherQuest?.progressMetricsValue && (
+                <div className="expanded-card-prop">
+                  Reward: {s.associatedProgress || "?"}{" "}
+                  {mainMotherQuest.progressMetricsName} out of{" "}
+                  {mainMotherQuest.progressMetricsValue}
+                </div>
+              )}
             <div className="expanded-card-prop">
-              Time range: {s.start && s.end && manager.formatDateRange(s.start, s.end)}
+              Time range:{" "}
+              {s.start && s.end && manager.formatDateRange(s.start, s.end)}
             </div>
           </div>
-          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
-        </div>
-      );
-    },
-    [manager]
-  );
-
-  const renderSessionCard = useCallback(
-    (s) => {
-      const mainMotherQuest = manager.allMotherQuestsMap[s.motherQuestsFks[0]];
-      const progressMetricsName = mainMotherQuest?.progressMetricsName;
-      const progressMetricsValue = mainMotherQuest?.progressMetricsValue;
-      return (
-        <div
-          className="card"
-          onClick={() => setExpandedSessionId(s.id)}
-          style={{ cursor: "pointer" }}
-        >
-          <span className="card-text">
-            {s.name} 
-            {progressMetricsName && progressMetricsValue && (
-              <>
-                <span className="card-splitter">✦</span>
-                <span>{progressMetricsName}: {s.associatedProgress}/{progressMetricsValue}</span>
-              </>
-            )}
+        ) : (
+          <div className="card-text">
+            {s.name}
+            {mainMotherQuest?.progressMetricsName &&
+              mainMotherQuest?.progressMetricsValue && (
+                <>
+                  <span className="card-splitter">✦</span>
+                  <span>
+                    {mainMotherQuest.progressMetricsName}:{" "}
+                    {s.associatedProgress}/{mainMotherQuest.progressMetricsValue}
+                  </span>
+                </>
+              )}
             {s.start && s.end && (
               <span className="countdown">
                 <manager.SessionCountdown start={s.start} end={s.end} />
               </span>
             )}
-          </span>
-          {manager.renderCardButtons(s, { isFormOpen: isSessionInForm, setFormItem: setSessionInForm })}
-        </div>
-      );
-    },
-    [manager]
+          </div>
+        )}
+        {manager.renderCardButtons(s, {
+          isFormOpen: !!sessionInForm,
+          setFormItem: setSessionInForm,
+        })}
+      </div>
+    );
+  };
+  
+
+  const renderList = (sessions) => (
+    <ul>
+      {sessions.map((s) => (
+        <li key={s.id} className="card-li">
+          {renderSessionCard(s, expandedSessionId === s.id)}
+        </li>
+      ))}
+    </ul>
   );
 
+
+  
   return (
     <>
       <h2 style={{ marginBottom: "0.5rem" }}>Pending</h2>
       {manager.pendingSessions.length === 0 && (
         <p>No pending sessions. Add your next session!</p>
       )}
+      {renderList(manager.pendingSessions)}
 
-
-      <ul>
-        {manager.pendingSessions.map((s) =>
-          expandedSessionId === s.id ? (
-            <li key={s.id} className="card-li">
-              {renderExpandedSessionCard(s)}
-            </li>
-          ) : (
-            <li key={s.id} className="card-li">
-              {renderSessionCard(s)}
-            </li>
-          )
-        )}
-      </ul>
-
-
-      {/* <ul>
-        {pendingSessions.map(s => (
-          <li key={s.id} className="card-li">
-            {renderSessionCard(s)}
-          </li>
-        ))}
-      </ul>*/}
-
-      {isSessionInForm && <SessionForm />}
+      {sessionInForm && (
+        <SessionForm
+          sessionInForm={sessionInForm}
+          setSessionInForm={setSessionInForm}
+          user={user}
+          manager={manager}
+        />
+      )}
 
       <div className="row-buttons">
-        {!isSessionInForm && (
-          <button className="button" onClick={() => setSessionInForm(new Session())}>
+        {!sessionInForm && (
+          <button
+            className="button"
+            onClick={() => setSessionInForm(new Session())}
+          >
             + Add Session
           </button>
         )}
-        <button className="button" onClick={() => setIsShowCompletedSessions(!isShowCompletedSessions)}>
+        <button
+          className="button"
+          onClick={() => setIsShowCompletedSessions(!isShowCompletedSessions)}
+        >
           {isShowCompletedSessions ? "Hide Completed Sessions" : "See Completed Sessions"}
         </button>
       </div>
@@ -220,29 +217,20 @@ export default function SessionsTab({user}) {
       {isShowCompletedSessions && (
         <>
           <h2>Completed</h2>
-          <ul>
-            {manager.completedSessions.map(s => (
-              <li key={s.id} className="card-li">
-                {renderSessionCard(s)}
-              </li>
-            ))}
-          </ul>
+          {renderList(manager.completedSessions)}
         </>
       )}
+
       <h2>Google Calendar</h2>
       {/* <iframe 
         src={`https://calendar.google.com/calendar/embed?src=${user.email}&ctz=Europe%2FBrussels&mode=WEEK&showPrint=0`} 
         style={{ border: 0, width: "100%", height: "80vh" }}
       ></iframe> */}
       <div>
-      <button onClick={googleCalendarManager.fetchEvents}>Fetch Google Calendar events</button>
-      <ul>
-          {googleCalendarManager.googleEvents.map((ev) => (
-            <li key={ev.id}>
-              {ev.summary} — {ev.start.dateTime || ev.start.date}
-            </li>
-          ))}
-        </ul>
+        <button onClick={() => googleCalendarManager.fetchNextEvents(numberEventsToFetch)}>
+          Fetch next {numberEventsToFetch} events from Google Calendar
+        </button>
+        {renderList(googleCalendarManager.googleEvents)}
       </div>
     </>
   );

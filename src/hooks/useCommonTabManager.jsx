@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { format, isSameDay, isSameMonth, isSameYear } from "date-fns";
+import useGoogleCalendarManager from "./useGoogleCalendarManager";
 
 export default function useCommonTabManager({ changeStatus, remove } = {}) {
+
+   const googleCalendarManager = useGoogleCalendarManager();
 
   // Card buttons component
   const renderCardButtons = useCallback(
@@ -16,6 +19,18 @@ export default function useCommonTabManager({ changeStatus, remove } = {}) {
          >
             {item.isDone ? "\u21A9" : "\u2713"}
          </button>
+         {/* new button: Save to Google Calendar */}
+         {item.start && item.end && (
+            <button
+            className="card-button edit"
+            onClick={(e) => {
+               e.stopPropagation();
+               googleCalendarManager.createEvent(item);
+            }}
+            >
+            📅
+            </button>
+         )}
          <button
             className="card-button delete"
             onClick={(e) => {
