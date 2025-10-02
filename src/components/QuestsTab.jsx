@@ -28,7 +28,7 @@ export default function QuestsTab({ user }) {
         mainMotherQuest = manager.allMotherCategoriesMap[motherQuestsFks[motherQuestsFks.length - 1]] || null;
       }
     }
-    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName || "");
+    const [progressMetricsName, setProgressMetricsName] = useState(questInForm?.progressMetricsName || null);
     const [progressMetricsValue, setProgressMetricsValue] = useState(questInForm?.progressMetricsValue || 0);
     const [deadline, setDeadline] = useState(
       questInForm?.deadline
@@ -172,8 +172,7 @@ export default function QuestsTab({ user }) {
               Progress:{" "}
               <em>
                 <span>
-                  {q.progressMetricsName}: {q?.currentProgress}/
-                  {q.progressMetricsValue}
+                  {q?.currentProgress}/{q.progressMetricsValue} {q.progressMetricsName}
                 </span>
               </em>
             </div>

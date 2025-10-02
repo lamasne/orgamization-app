@@ -14,7 +14,7 @@ export const QuestMapper = {
     deadline: doc.deadline ? new Date(doc.deadline) : null,
     difficulty: Number(doc.difficulty) || 0,
     comment: doc.comment || "",
-    progressMetricsName: doc.progressMetricsName || "",
+    progressMetricsName: doc.progressMetricsName,
     progressMetricsValue: doc.progressMetricsValue ?? null,
   }),
   toDTO: (quest) => {

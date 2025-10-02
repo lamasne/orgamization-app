@@ -1,43 +1,58 @@
+:root {
+  --hour-slot-height: 40px; /* each hour slot height */
+}
+
 .calendar-container {
    display: flex;
    gap: 1rem;
  }
  
- .calendar-day {
-   flex: 1;
-   border: 1px solid #ccc;
-   background-color: #f0f0f0;
-   padding: 0.5rem;
-   color: #333;
- }
- 
- .calendar-day-title {
-   text-align: center;
-   margin: 0.25rem 0 0.5rem;
- }
- 
- .calendar-grid {
-   position: relative;
- }
- 
- .calendar-hour {
-   height: 40px;
-   border-top: 1px solid #ccc;
-   cursor: pointer;
-   font-size: 0.8rem;
-   padding-left: 4px;
- }
+.calendar-day {
+  flex: 1;
+  /* border: 1px solid #ccc; */
+  padding: 0.5rem 0.5rem 0.5rem 2rem; /* Added left padding for hour-label */
+  color: white;
+}
+
+.calendar-day-title {
+  text-align: center;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.calendar-grid {
+  position: relative;
+  height: calc(var(--hour-slot-height) * 24);
+}
+
+.calendar-hour-tick {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--hour-slot-height);  /* give each slot its height */
+  border-top: 1px solid #aaa;
+}
+
+.hour-label {
+  position: absolute;          /* align within the slot */
+  top: 0;
+  transform: translateY(-50%); /* vertically center in slot */
+  left: -1.5rem;               /* uses the padding you added on .calendar-day */
+  font-size: 0.75rem;
+  color: white;
+}
  
  .calendar-session {
    position: absolute;
    left: 5%;
    width: 90%;
-   background: rgba(100, 150, 255, 0.6);
-   border: 1px solid #3366ff;
-   border-radius: 6px;
+   background: var(--fg);
+   opacity: 0.9;
+   border: 2px solid var(--gold);
+   border-radius: 10px;
    pointer-events: none;
    padding: 2px 4px;
-   font-size: 0.75rem;
+   font-size: 1rem;
+   color: var(--bg);
    box-sizing: border-box;
  }
  

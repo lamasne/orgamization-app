@@ -7,22 +7,24 @@ export default function CustomCalendar() {
 
   const renderDaySchedule = (day, dayIdx) => (
     <div key={dayIdx} className="calendar-day">
-      <h4 className="calendar-day-title">{manager.formatDate(day)}</h4>
+      <h4 className="calendar-day-title">
+        {day.toLocaleDateString("en-US", { weekday: "short" })} · {manager.formatDate(day)}
+      </h4>
 
-      <div className="calendar-grid">
+      <div className="calendar-grid" onClick={(e) => manager.handleTimeClick(day, e)}>
         {[...Array(24)].map((_, h) => (
           <div
             key={h}
-            className="calendar-hour"
-            onClick={() => manager.handleClick(day, h)}
+            className="calendar-hour-tick"
+            style={{ top: h * manager.hourHeight }}
           >
-            {`${h}:00`}
+            <span className="hour-label">{`${h}`}</span>
           </div>
         ))}
 
         {manager.sessions
           .filter((s) => s.start.toDateString() === day.toDateString())
-          .map((s) => manager.renderSession(s))}
+          .map(manager.renderSession)}
       </div>
     </div>
   );

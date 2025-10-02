@@ -1,4 +1,5 @@
 import { SessionRepository } from "../repositories/SessionRepository";
+import { QuestRepository } from "../repositories/QuestRepository";
 import { Session } from "../models/Session";
 import { useState, useCallback } from "react";
 import useSessionTabManager from "../hooks/useSessionTabManager";
@@ -23,6 +24,9 @@ export default function SessionsTab({user}) {
     const [associatedProgress, setAssociatedProgress] = useState(sessionInForm?.associatedProgress || 0);
     const [start, setStart] = useState(sessionInForm?.start || "");
     const [end, setEnd] = useState(sessionInForm?.end || "");
+    const [progressMetricsName, setProgressMetricsName] = useState(mainMotherQuest?.progressMetricsName || "");
+    const [progressMetricsMaxValue, setProgressMetricsMaxValue] = useState(mainMotherQuest?.progressMetricsValue || 0);
+    const isProgressMetricsNameUpdated = progressMetricsName != "" && progressMetricsName != mainMotherQuest.progressMetricsName;
 
     const finishAddEdit = () => {
       setSessionInForm(null);
@@ -31,6 +35,16 @@ export default function SessionsTab({user}) {
     const handleSubmit = async (e) => {
       console.log("user", user.uid, "Will update/save session", sessionInForm?.name, "with", name, motherQuestsFks, associatedProgress);
       e.preventDefault();
+      
+      if (isProgressMetricsNameUpdated) {
+        const newMainMotherQuest = { 
+          ...mainMotherQuest, 
+          progressMetricsName: progressMetricsName, 
+          progressMetricsValue: progressMetricsMaxValue 
+        };
+        await QuestRepository.save(user.uid, newMainMotherQuest);
+      }
+      
       const session = new Session({ 
         ...sessionInForm,
         userId: user.uid,
@@ -66,19 +80,36 @@ export default function SessionsTab({user}) {
           ))}
         </select>
         {mainMotherQuest && (
-          <span>
-            {(mainMotherQuest.progressMetricsName || "Mother quest progress metric undetermined")}
+          <span style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <input
+              type="text"
+              value={progressMetricsName || ""}
+              placeholder= {mainMotherQuest?.progressMetricsName || "Progress Metrics Name"}
+              onChange={(e) => setProgressMetricsName(e.target.value)}
+              className="form-input"
+              style={{ flex: 1 }}
+            />
             {mainMotherQuest.progressMetricsName !== "hoursSpent"  && (<>
-              {": "}
+              {/* {": "} */}
               <input
                 type="number"
-                value={associatedProgress}
-                placeholder={`Associated progress (max: ${mainMotherQuest.progressMetricsValue})`}
+                value={associatedProgress || ""}
+                placeholder= {associatedProgress || "Associated Progress"}
                 onChange={e => setAssociatedProgress(Number(e.target.value))}
                 required
                 className="form-input"
+                style={{ width: "40px" }}
               />
             </>)}
+            <span>out of </span>
+            <input
+              type="number"
+              value={progressMetricsMaxValue || ""}
+              placeholder= {mainMotherQuest?.progressMetricsValue || "Quest Total Value"}
+              onChange={e => setProgressMetricsMaxValue(Number(e.target.value))}
+              className="form-input"
+              style={{ width: "40px" }}
+            />
           </span>
         )}
 
@@ -167,7 +198,6 @@ export default function SessionsTab({user}) {
     );
   };
   
-
   const renderList = (sessions) => (
     <ul>
       {sessions.map((s) => (
@@ -177,8 +207,6 @@ export default function SessionsTab({user}) {
       ))}
     </ul>
   );
-
-
   
   return (
     <>
